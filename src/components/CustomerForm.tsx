@@ -1,0 +1,139 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { addCustomer, checkDuplicateCustomer } from '@/lib/firestore';
+import { getPhoneValidationError } from '@/lib/validation';
+import { UserPlus } from 'lucide-react';
+
+interface CustomerFormProps {
+    onSuccess: () => void;
+}
+
+export function CustomerForm({ onSuccess }: CustomerFormProps) {
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [phoneError, setPhoneError] = useState<string | null>(null);
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        dateOfBirth: '',
+    });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            // Validate phone number
+            const phoneValidationError = getPhoneValidationError(formData.phone);
+            if (phoneValidationError) {
+                setPhoneError(phoneValidationError);
+                setLoading(false);
+                return;
+            }
+            setPhoneError(null);
+
+            // Check for duplicate customer
+            const isDuplicate = await checkDuplicateCustomer(formData.name, formData.phone);
+            if (isDuplicate) {
+                alert('A customer with this name or phone number already exists. Please use different details.');
+                setLoading(false);
+                return;
+            }
+
+            await addCustomer(formData);
+            setOpen(false);
+            setFormData({ name: '', phone: '', dateOfBirth: '' });
+            setPhoneError(null);
+            onSuccess();
+        } catch (error) {
+            console.error('Error saving customer:', error);
+            alert('Failed to save customer. Please check your Firebase configuration.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const phone = e.target.value;
+        setFormData({ ...formData, phone });
+
+        // Clear error when user starts typing
+        if (phoneError) {
+            setPhoneError(null);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button className="bg-orange-500 hover:bg-orange-600">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add Customer
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Add New Customer</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Name</Label>
+                        <Input
+                            id="name"
+                            value={formData.name}
+                            onChange={(e) =>
+                                setFormData({ ...formData, name: e.target.value })
+                            }
+                            placeholder="Customer name"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input
+                            id="phone"
+                            type="tel"
+                            value={formData.phone}
+                            onChange={handlePhoneChange}
+                            placeholder="Phone number"
+                            required
+                            className={phoneError ? 'border-red-500' : ''}
+                        />
+                        {phoneError && (
+                            <p className="text-xs text-red-500">{phoneError}</p>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="dob">Date of Birth (Optional)</Label>
+                        <Input
+                            id="dob"
+                            type="date"
+                            value={formData.dateOfBirth}
+                            onChange={(e) =>
+                                setFormData({ ...formData, dateOfBirth: e.target.value })
+                            }
+                        />
+                    </div>
+                    <Button
+                        type="submit"
+                        className="w-full bg-orange-500 hover:bg-orange-600"
+                        disabled={loading}
+                    >
+                        {loading ? 'Saving...' : 'Add Customer'}
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
