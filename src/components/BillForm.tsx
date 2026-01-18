@@ -90,15 +90,15 @@ export function BillForm() {
                 paymentMethod,
             };
 
-            await addBill(selectedCustomer.id, billData);
+            const billId = await addBill(selectedCustomer.id, billData);
 
             setSavedBill({
                 ...billData,
-                id: billNumber,
+                id: billId,
                 createdAt: new Date(),
             });
 
-            alert('Bill saved successfully!');
+            alert('Bill saved successfully! Shareable link has been generated.');
         } catch (error) {
             console.error('Error saving bill:', error);
             alert('Failed to save bill. Please check your Firebase configuration.');
@@ -160,36 +160,27 @@ export function BillForm() {
         }
     };
 
-    const handleShareWhatsApp = async () => {
-        const pdfBlob = await generatePDF();
-        if (!pdfBlob) {
-            alert('Failed to generate PDF');
+    const handleShareWhatsApp = () => {
+        if (!savedBill) {
+            alert('Please save the bill first before sharing.');
             return;
         }
 
-        // Check if Web Share API is available
-        if (navigator.share && navigator.canShare) {
-            const file = new File([pdfBlob], `${billNumber}.pdf`, { type: 'application/pdf' });
+        // Generate shareable link for the bill
+        const billUrl = `${window.location.origin}/bill/${savedBill.id}`;
 
-            if (navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: `Pareez Salon Bill - ${billNumber}`,
-                        text: `Bill from Pareez Unisex Professional Salon\nBill No: ${billNumber}\nCustomer: ${selectedCustomer?.name}\nTotal Amount: ₹${totalAmount.toFixed(2)}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`,
-                    });
-                    return;
-                } catch (error) {
-                    console.log('Share cancelled or failed:', error);
-                }
-            }
-        }
-
-        // Fallback: Open WhatsApp with text message
         const message = encodeURIComponent(
-            `Bill from Pareez Unisex Professional Salon\nBill No: ${billNumber}\nCustomer: ${selectedCustomer?.name}\nTotal Amount: ₹${totalAmount.toFixed(2)}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
+            `Bill from Pareez Unisex Professional Salon\nBill No: ${savedBill.billNumber}\nCustomer: ${savedBill.customerName}\nTotal Amount: ₹${savedBill.totalAmount.toFixed(2)}\n\nView your bill online: ${billUrl}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
         );
-        window.open(`https://wa.me/?text=${message}`, '_blank');
+
+        // Direct WhatsApp to customer's phone number
+        if (savedBill.customerPhone) {
+            const cleanPhone = savedBill.customerPhone.replace(/[^0-9]/g, '');
+            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+        } else {
+            // Fallback to general WhatsApp if no phone number
+            window.open(`https://wa.me/?text=${message}`, '_blank');
+        }
     };
 
     const resetForm = () => {

@@ -66,34 +66,22 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
         }
     };
 
-    const handleShareWhatsApp = async () => {
-        const pdfBlob = await generatePDF();
-        if (!pdfBlob) {
-            alert('Failed to generate PDF');
-            return;
-        }
-
-        if (navigator.share && navigator.canShare) {
-            const file = new File([pdfBlob], `${bill.billNumber}.pdf`, { type: 'application/pdf' });
-
-            if (navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: `Pareez Salon Bill - ${bill.billNumber}`,
-                        text: `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`,
-                    });
-                    return;
-                } catch (error) {
-                    console.log('Share cancelled or failed:', error);
-                }
-            }
-        }
+    const handleShareWhatsApp = () => {
+        // Generate shareable link for the bill
+        const billUrl = `${window.location.origin}/bill/${bill.id}`;
 
         const message = encodeURIComponent(
-            `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
+            `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nView your bill online: ${billUrl}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
         );
-        window.open(`https://wa.me/?text=${message}`, '_blank');
+
+        // Direct WhatsApp to customer's phone number
+        if (bill.customerPhone) {
+            const cleanPhone = bill.customerPhone.replace(/[^0-9]/g, '');
+            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+        } else {
+            // Fallback to general WhatsApp if no phone number
+            window.open(`https://wa.me/?text=${message}`, '_blank');
+        }
     };
 
     return (

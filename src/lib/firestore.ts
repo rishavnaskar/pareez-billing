@@ -101,6 +101,20 @@ export async function getAllBills(): Promise<Bill[]> {
   );
 }
 
+export async function getBillById(billId: string): Promise<Bill | null> {
+  const customers = await getCustomers();
+  
+  for (const customer of customers) {
+    const bills = await getBillsForCustomer(customer.id);
+    const bill = bills.find(b => b.id === billId);
+    if (bill) {
+      return bill;
+    }
+  }
+  
+  return null;
+}
+
 export async function generateBillNumber(): Promise<string> {
   const today = new Date();
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
