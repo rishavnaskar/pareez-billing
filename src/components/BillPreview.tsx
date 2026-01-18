@@ -9,6 +9,7 @@ import { BillLogo } from './BillLogo';
 import { format } from 'date-fns';
 import { Download, Share2 } from 'lucide-react';
 import { generateBillPDF } from '@/lib/pdf-generator';
+import { maskPhoneNumber } from '@/lib/phone-mask';
 
 interface BillPreviewProps {
     bill: Bill;
@@ -71,7 +72,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
         const billUrl = `${window.location.origin}/bill/${bill.id}`;
 
         const message = encodeURIComponent(
-            `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nView your bill online: ${billUrl}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
+            `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nView your bill online: ${billUrl}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon`
         );
 
         // Direct WhatsApp to customer's phone number
@@ -157,7 +158,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             </div>
                             <div>
                                 <span className="text-gray-500">Phone:</span>
-                                <span className="ml-2">{bill.customerPhone}</span>
+                                <span className="ml-2">{maskPhoneNumber(bill.customerPhone)}</span>
                             </div>
                         </div>
 

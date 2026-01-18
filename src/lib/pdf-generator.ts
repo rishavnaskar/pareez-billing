@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ServiceItem } from './types';
+import { maskPhoneNumber } from './phone-mask';
 
 export interface PDFGenerationOptions {
   billNumber: string;
@@ -84,7 +85,7 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   pdf.setFont('helvetica', 'normal');
   pdf.text(`Name: ${customerName}`, margin + 5, yPos);
   yPos += 6;
-  pdf.text(`Phone: ${customerPhone}`, margin + 5, yPos);
+  pdf.text(`Phone: ${maskPhoneNumber(customerPhone)}`, margin + 5, yPos);
   yPos += 15;
 
   // Services Table with better styling

@@ -73,6 +73,15 @@ export async function addBill(
   return docRef.id;
 }
 
+export async function updateBill(
+  customerId: string,
+  billId: string,
+  billData: Partial<Omit<Bill, 'id' | 'createdAt' | 'customerId'>>
+): Promise<void> {
+  const docRef = doc(db, 'customers', customerId, 'bills', billId);
+  await updateDoc(docRef, billData);
+}
+
 export async function getBillsForCustomer(customerId: string): Promise<Bill[]> {
   const querySnapshot = await getDocs(
     query(

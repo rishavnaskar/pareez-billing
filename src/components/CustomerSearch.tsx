@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/popover';
 import { Customer } from '@/lib/types';
 import { getCustomers } from '@/lib/firestore';
+import { maskPhoneNumber } from '@/lib/phone-mask';
 
 interface CustomerSearchProps {
     onSelect: (customer: Customer | null) => void;
@@ -55,7 +56,7 @@ export function CustomerSearch({ onSelect, selectedCustomer }: CustomerSearchPro
                 >
                     {selectedCustomer ? (
                         <span>
-                            {selectedCustomer.name} - {selectedCustomer.phone}
+                            {selectedCustomer.name} - {maskPhoneNumber(selectedCustomer.phone)}
                         </span>
                     ) : (
                         <span className="text-muted-foreground">
@@ -94,7 +95,7 @@ export function CustomerSearch({ onSelect, selectedCustomer }: CustomerSearchPro
                                     <div className="flex flex-col">
                                         <span className="font-medium">{customer.name}</span>
                                         <span className="text-sm text-muted-foreground">
-                                            {customer.phone}
+                                            {maskPhoneNumber(customer.phone)}
                                         </span>
                                     </div>
                                 </CommandItem>

@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getBillById } from '@/lib/firestore';
-import { Bill } from '@/lib/types';
-import { generatePDF } from '@/lib/pdf-generator';
+import { Bill, ServiceItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Share2, ArrowLeft, Calendar, User, Phone, FileText } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Download } from 'lucide-react';
+import { generateBillPDF } from '@/lib/pdf-generator';
+import { maskPhoneNumber } from '@/lib/phone-mask';
+import Image from 'next/image';
 
 export default function BillPreviewPage() {
     const params = useParams();
@@ -43,7 +45,7 @@ export default function BillPreviewPage() {
         if (!bill) return;
 
         try {
-            const pdfBlob = await generatePDF(bill);
+            const pdfBlob = await generateBillPDF(bill);
             const url = URL.createObjectURL(pdfBlob);
             const a = document.createElement('a');
             a.href = url;
@@ -58,24 +60,9 @@ export default function BillPreviewPage() {
         }
     };
 
-    const handleShareWhatsApp = () => {
-        if (!bill) return;
-
-        const message = encodeURIComponent(
-            `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nView your bill online: ${window.location.href}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
-        );
-
-        // Direct WhatsApp to customer's phone number
-        if (bill.customerPhone) {
-            window.open(`https://wa.me/${bill.customerPhone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank');
-        } else {
-            // Fallback to general WhatsApp if no phone number
-            window.open(`https://wa.me/?text=${message}`, '_blank');
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-IN', {
+    const formatDate = (date: Date | string) => {
+        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        return dateObj.toLocaleDateString('en-IN', {
             day: 'numeric',
             month: 'short',
             year: 'numeric'
@@ -96,9 +83,10 @@ export default function BillPreviewPage() {
     if (error || !bill) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <Card className="max-w-md">
-                    <CardContent className="text-center py-8">
-                        <p className="text-red-600">{error || 'Bill not found'}</p>
+                <Card className="max-w-md w-full mx-4">
+                    <CardContent className="pt-6 text-center">
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">Bill Not Found</h2>
+                        <p className="text-gray-600">The requested bill could not be found.</p>
                     </CardContent>
                 </Card>
             </div>
@@ -106,132 +94,147 @@ export default function BillPreviewPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-4xl mx-auto px-4">
-                {/* Header */}
-                <div className="mb-6">
-                    <Button
-                        variant="ghost"
-                        onClick={() => window.history.back()}
-                        className="mb-4"
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
-                    </Button>
-
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900">Bill Preview</h1>
-                            <p className="text-gray-600 mt-1">Bill #{bill.billNumber}</p>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <Button onClick={handleDownloadPDF}>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download PDF
-                            </Button>
-                            <Button onClick={handleShareWhatsApp} variant="outline">
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share on WhatsApp
-                            </Button>
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-gray-50 py-4 sm:py-8">
+            <div className="max-w-3xl mx-auto px-4">
+                {/* Header with Logo and Download */}
+                <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <Image
+                            src="/logo.jpg"
+                            alt="Pareez Salon"
+                            width={50}
+                            height={50}
+                            className="object-contain rounded-lg"
+                        />
+                        <div className="text-center sm:text-left">
+                            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Pareez Unisex Professional Salon</h1>
+                            <p className="text-sm text-gray-600">Your Beauty, Our Passion</p>
                         </div>
                     </div>
+                    <Button onClick={handleDownloadPDF} className="bg-orange-500 hover:bg-orange-600">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Receipt
+                    </Button>
                 </div>
 
-                {/* Bill Content */}
-                <Card>
-                    <CardHeader>
+                {/* Bill Card */}
+                <Card className="shadow-xl overflow-hidden">
+                    {/* Orange Header */}
+                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6">
                         <div className="flex justify-between items-start">
                             <div>
-                                <CardTitle className="text-2xl text-orange-600">Pareez Unisex Professional Salon</CardTitle>
-                                <p className="text-gray-600 mt-2">Professional Beauty Services</p>
+                                <h2 className="text-2xl font-bold mb-1">Invoice Receipt</h2>
+                                <p className="text-orange-100 text-sm">Bill #{bill.billNumber}</p>
                             </div>
                             <div className="text-right">
-                                <p className="font-semibold">Bill #{bill.billNumber}</p>
-                                <p className="text-sm text-gray-600">{formatDate(bill.createdAt)}</p>
+                                <p className="text-sm text-orange-100">Date</p>
+                                <p className="font-semibold">{formatDate(bill.createdAt)}</p>
                             </div>
                         </div>
-                    </CardHeader>
+                    </div>
 
-                    <CardContent className="space-y-6">
-                        {/* Customer Info */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-gray-500" />
-                                    <span className="font-medium">Customer:</span>
-                                    <span>{bill.customerName}</span>
+                    <CardContent className="p-6">
+                        {/* Customer Information */}
+                        <div className="mb-6">
+                            <h3 className="font-semibold text-gray-900 mb-3">Customer Information</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
+                                <div>
+                                    <p className="text-sm text-gray-600">Name</p>
+                                    <p className="font-medium text-gray-900">{bill.customerName}</p>
                                 </div>
-                                {bill.customerPhone && (
-                                    <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-gray-500" />
-                                        <span className="font-medium">Phone:</span>
-                                        <span>{bill.customerPhone}</span>
+                                <div>
+                                    <p className="text-sm text-gray-600">Phone</p>
+                                    <p className="font-medium text-gray-900">{maskPhoneNumber(bill.customerPhone)}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Services Rendered */}
+                        <div className="mb-6">
+                            <h3 className="font-semibold text-gray-900 mb-3">Services Rendered</h3>
+
+                            {/* Mobile View */}
+                            <div className="sm:hidden space-y-2">
+                                {bill.services.map((service: ServiceItem, index: number) => (
+                                    <div key={index} className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                                        <span className="font-medium text-gray-900">{service.serviceName}</span>
+                                        <span className="font-semibold text-gray-900">₹{service.price.toFixed(2)}</span>
                                     </div>
-                                )}
+                                ))}
                             </div>
 
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4 text-gray-500" />
-                                    <span className="font-medium">Date:</span>
-                                    <span>{formatDate(bill.createdAt)}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-gray-500" />
-                                    <span className="font-medium">Payment:</span>
-                                    <span>{bill.paymentMethod}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Services Table */}
-                        <div>
-                            <h3 className="font-semibold text-lg mb-3">Services</h3>
-                            <div className="border rounded-lg overflow-hidden">
+                            {/* Desktop View */}
+                            <div className="hidden sm:block">
                                 <table className="w-full">
-                                    <thead className="bg-gray-50">
+                                    <thead className="border-b-2 border-gray-200">
                                         <tr>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Service</th>
-                                            <th className="px-4 py-3 text-right text-sm font-medium text-gray-900">Price</th>
+                                            <th className="text-left py-2 text-gray-700 font-semibold">Service</th>
+                                            <th className="text-right py-2 text-gray-700 font-semibold">Price</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y">
-                                        {bill.services.map((service, index) => (
-                                            <tr key={index}>
-                                                <td className="px-4 py-3 text-sm">{service.name}</td>
-                                                <td className="px-4 py-3 text-sm text-right">₹{service.price.toFixed(2)}</td>
+                                    <tbody>
+                                        {bill.services.map((service: ServiceItem, index: number) => (
+                                            <tr key={index} className="border-b border-gray-100">
+                                                <td className="py-3 text-gray-900">{service.serviceName}</td>
+                                                <td className="py-3 text-right text-gray-900 font-medium">₹{service.price.toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot className="bg-gray-50">
-                                        <tr>
-                                            <td className="px-4 py-3 font-semibold">Total Amount</td>
-                                            <td className="px-4 py-3 text-right font-semibold text-lg">
-                                                ₹{bill.totalAmount.toFixed(2)}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
                                 </table>
                             </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className="border-t pt-4 text-center text-sm text-gray-600">
-                            <p>Thank you for visiting Pareez Unisex Professional Salon!</p>
-                            <p className="mt-2">
-                                Follow us:
-                                <a href="https://instagram.com/pareezsalon" target="_blank" rel="noopener noreferrer" className="ml-1 text-orange-600 hover:underline">@pareezsalon</a> |
-                                <a href="https://facebook.com/PAREEZ.salon" target="_blank" rel="noopener noreferrer" className="ml-1 text-orange-600 hover:underline">PAREEZ.salon</a>
-                            </p>
-                            <p className="mt-1">
-                                <a href="https://g.page/r/CQL8v4uFTDjKEBI/review" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">
-                                    Leave a Google Review
-                                </a>
-                            </p>
+                        {/* Payment Summary */}
+                        <div className="border-t-2 border-gray-200 pt-4">
+                            <h3 className="font-semibold text-gray-900 mb-3">Payment Summary</h3>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-gray-700">
+                                    <span>Subtotal:</span>
+                                    <span className="font-medium">₹{bill.subtotal.toFixed(2)}</span>
+                                </div>
+                                {bill.discountAmount > 0 && (
+                                    <div className="flex justify-between text-green-600">
+                                        <span>Discount:</span>
+                                        <span className="font-medium">-₹{bill.discountAmount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-700">Payment Method</span>
+                                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium capitalize">
+                                        💳 {bill.paymentMethod}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center pt-3 border-t-2 border-orange-200">
+                                    <span className="text-lg font-bold text-gray-900">Total Amount</span>
+                                    <span className="text-2xl font-bold text-orange-600">₹{bill.totalAmount.toFixed(2)}</span>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Thank You Section */}
+                <div className="mt-6 text-center bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Thank You! 💕</h3>
+                    <p className="text-gray-600 mb-4">We appreciate your visit to Pareez Unisex Professional Salon</p>
+
+                    <div className="flex flex-col sm:flex-row justify-center items-center gap-3">
+                        <a href="https://instagram.com/pareezsalon" target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all w-full sm:w-auto justify-center">
+                            📷 Instagram
+                        </a>
+                        <a href="https://facebook.com/PAREEZ.salon" target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-medium hover:bg-blue-700 transition-all w-full sm:w-auto justify-center">
+                            📘 Facebook
+                        </a>
+                        <a href="https://g.page/r/CQL8v4uFTDjKEBI/review" target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 transition-all w-full sm:w-auto justify-center">
+                            ⭐ Google Review
+                        </a>
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-4">Follow us for updates and special offers!</p>
+                </div>
             </div>
         </div>
     );

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
@@ -13,10 +12,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { CustomerForm } from './CustomerForm';
-import { getCustomers, deleteCustomer } from '@/lib/firestore';
+import { getCustomers } from '@/lib/firestore';
 import { Customer } from '@/lib/types';
-import { Search, Trash2, Users } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import { format } from 'date-fns';
+import { maskPhoneNumber } from '@/lib/phone-mask';
 
 export function CustomerList() {
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -39,16 +39,6 @@ export function CustomerList() {
         fetchCustomers();
     }, []);
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this customer?')) {
-            try {
-                await deleteCustomer(id);
-                fetchCustomers();
-            } catch (error) {
-                console.error('Error deleting customer:', error);
-            }
-        }
-    };
 
     const filteredCustomers = customers.filter(
         (c) =>
@@ -86,41 +76,30 @@ export function CustomerList() {
                     </div>
                 ) : (
                     <div className="rounded-md border overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-xs sm:text-sm">Name</TableHead>
-                                    <TableHead className="text-xs sm:text-sm">Phone</TableHead>
-                                    <TableHead className="hidden sm:table-cell text-xs sm:text-sm">Date of Birth</TableHead>
-                                    <TableHead className="text-right text-xs sm:text-sm">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredCustomers.map((customer) => (
-                                    <TableRow key={customer.id}>
-                                        <TableCell className="font-medium text-xs sm:text-sm">{customer.name}</TableCell>
-                                        <TableCell className="text-xs sm:text-sm">{customer.phone}</TableCell>
-                                        <TableCell className="hidden sm:table-cell text-xs sm:text-sm">
-                                            {customer.dateOfBirth
-                                                ? format(new Date(customer.dateOfBirth), 'dd MMM yyyy')
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDelete(customer.id)}
-                                                    className="text-red-500 hover:text-red-700"
-                                                >
-                                                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                        <div className="min-w-full">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="text-xs sm:text-sm min-w-[120px]">Name</TableHead>
+                                        <TableHead className="text-xs sm:text-sm min-w-[150px]">Phone</TableHead>
+                                        <TableHead className="text-xs sm:text-sm min-w-[120px]">Date of Birth</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredCustomers.map((customer) => (
+                                        <TableRow key={customer.id}>
+                                            <TableCell className="font-medium text-xs sm:text-sm min-w-[120px]">{customer.name}</TableCell>
+                                            <TableCell className="text-xs sm:text-sm min-w-[150px]">{maskPhoneNumber(customer.phone)}</TableCell>
+                                            <TableCell className="text-xs sm:text-sm min-w-[120px]">
+                                                {customer.dateOfBirth
+                                                    ? format(new Date(customer.dateOfBirth), 'dd MMM yyyy')
+                                                    : '-'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 )}
             </CardContent>
