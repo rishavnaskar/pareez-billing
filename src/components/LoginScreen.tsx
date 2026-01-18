@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { loginUser, validateEmail, validatePassword } from '@/lib/auth';
-import { Alert, AlertDescription } from './ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface LoginScreenProps {
     onLogin: (user: { uid: string; email: string }) => void;
