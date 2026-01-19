@@ -8,6 +8,8 @@ import {
   query,
   orderBy,
   Timestamp,
+  where,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Customer, Bill } from './types';
@@ -66,29 +68,33 @@ export async function addBill(
   customerId: string,
   bill: Omit<Bill, 'id' | 'createdAt'>
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, 'customers', customerId, 'bills'), {
+  const docRef = await addDoc(collection(db, 'bills'), {
     ...bill,
+    customerId,
     createdAt: Timestamp.now(),
   });
   return docRef.id;
 }
 
 export async function updateBill(
-  customerId: string,
   billId: string,
-  billData: Partial<Omit<Bill, 'id' | 'createdAt' | 'customerId'>>
+  billData: Partial<Omit<Bill, 'id' | 'createdAt'>>
 ): Promise<void> {
-  const docRef = doc(db, 'customers', customerId, 'bills', billId);
+  const docRef = doc(db, 'bills', billId);
   await updateDoc(docRef, billData);
 }
 
-export async function getBillsForCustomer(customerId: string): Promise<Bill[]> {
-  const querySnapshot = await getDocs(
-    query(
-      collection(db, 'customers', customerId, 'bills'),
-      orderBy('createdAt', 'desc')
-    )
-  );
+export async function getBillsForCustomer(customerId: string, branchId?: string): Promise<Bill[]> {
+  let q = query(collection(db, 'bills'), where('customerId', '==', customerId));
+  
+  if (branchId) {
+    q = query(q, where('branchId', '==', branchId));
+  }
+  
+  q = query(q, orderBy('createdAt', 'desc'));
+  
+  const querySnapshot = await getDocs(q);
+  
   return querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
@@ -96,53 +102,61 @@ export async function getBillsForCustomer(customerId: string): Promise<Bill[]> {
   })) as Bill[];
 }
 
-export async function getAllBills(): Promise<Bill[]> {
-  const customers = await getCustomers();
-  const allBills: Bill[] = [];
+export async function getAllBills(branchId?: string): Promise<Bill[]> {
+  let q = query(collection(db, 'bills'));
   
-  for (const customer of customers) {
-    const bills = await getBillsForCustomer(customer.id);
-    allBills.push(...bills);
+  if (branchId) {
+    q = query(q, where('branchId', '==', branchId));
   }
   
-  return allBills.sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  q = query(q, orderBy('createdAt', 'desc'));
+  
+  const querySnapshot = await getDocs(q);
+  
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toDate() || new Date(),
+  })) as Bill[];
 }
 
 export async function getBillById(billId: string): Promise<Bill | null> {
-  const customers = await getCustomers();
+  const docRef = doc(db, 'bills', billId);
+  const docSnap = await getDoc(docRef);
   
-  for (const customer of customers) {
-    const bills = await getBillsForCustomer(customer.id);
-    const bill = bills.find(b => b.id === billId);
-    if (bill) {
-      return bill;
-    }
+  if (docSnap.exists()) {
+    return {
+      id: docSnap.id,
+      ...docSnap.data(),
+      createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+    } as Bill;
   }
   
   return null;
 }
 
-export async function generateBillNumber(): Promise<string> {
+export async function generateBillNumber(branchId?: string): Promise<string> {
   const today = new Date();
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
   
-  // Get count of bills today for sequential numbering
-  const customers = await getCustomers();
-  let todayBillCount = 0;
+  let q = query(collection(db, 'bills'));
   
-  for (const customer of customers) {
-    const bills = await getBillsForCustomer(customer.id);
-    todayBillCount += bills.filter((bill) => {
-      const billDate = new Date(bill.createdAt);
-      return (
-        billDate.getFullYear() === today.getFullYear() &&
-        billDate.getMonth() === today.getMonth() &&
-        billDate.getDate() === today.getDate()
-      );
-    }).length;
+  if (branchId) {
+    q = query(q, where('branchId', '==', branchId));
   }
+  
+  q = query(q, orderBy('createdAt', 'desc'));
+  
+  const querySnapshot = await getDocs(q);
+  
+  const todayBillCount = querySnapshot.docs.filter((doc) => {
+    const billDate = doc.data().createdAt?.toDate() || new Date();
+    return (
+      billDate.getFullYear() === today.getFullYear() &&
+      billDate.getMonth() === today.getMonth() &&
+      billDate.getDate() === today.getDate()
+    );
+  }).length;
   
   return `PRZ-${dateStr}-${String(todayBillCount + 1).padStart(3, '0')}`;
 }

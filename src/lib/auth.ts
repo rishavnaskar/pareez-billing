@@ -1,10 +1,13 @@
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from './firebase';
+import { UserRole } from './types';
 
 export interface AuthUser {
   uid: string;
   email: string;
   displayName?: string;
+  role: UserRole;
+  branchId?: string;
 }
 
 export function validateEmail(email: string): boolean {
@@ -37,18 +40,26 @@ export async function loginUser(email: string, password: string): Promise<AuthUs
     const userCredential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
     const user = userCredential.user;
     
-    // Get ID token
-    const idToken = await user.getIdToken();
+    // Get ID token with custom claims
+    const idTokenResult = await user.getIdTokenResult();
+    const role = (idTokenResult.claims.role as UserRole) || 'user';
+    const branchId = idTokenResult.claims.branchId as string | undefined;
     
-    // Store token in localStorage
-    localStorage.setItem('authToken', idToken);
+    // Store token and user data in localStorage
+    localStorage.setItem('authToken', idTokenResult.token);
     localStorage.setItem('userEmail', user.email || '');
     localStorage.setItem('userId', user.uid);
+    localStorage.setItem('userRole', role);
+    if (branchId) {
+      localStorage.setItem('userBranchId', branchId);
+    }
     
     return {
       uid: user.uid,
       email: user.email || '',
       displayName: user.displayName || undefined,
+      role,
+      branchId,
     };
   } catch (error) {
     console.error('Login error:', error);
@@ -59,10 +70,12 @@ export async function loginUser(email: string, password: string): Promise<AuthUs
 export async function logoutUser(): Promise<void> {
   try {
     await signOut(auth);
-    // Clear stored tokens
+    // Clear stored tokens and user data
     localStorage.removeItem('authToken');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userBranchId');
   } catch (error) {
     console.error('Logout error:', error);
     throw error;
@@ -77,12 +90,16 @@ export function getStoredUser(): AuthUser | null {
   const token = localStorage.getItem('authToken');
   const email = localStorage.getItem('userEmail');
   const userId = localStorage.getItem('userId');
+  const role = localStorage.getItem('userRole') as UserRole;
+  const branchId = localStorage.getItem('userBranchId');
   
-  if (token && email && userId) {
+  if (token && email && userId && role) {
     return {
       uid: userId,
       email,
       displayName: undefined,
+      role,
+      branchId: branchId || undefined,
     };
   }
   
@@ -93,6 +110,8 @@ export function clearStoredAuth(): void {
   localStorage.removeItem('authToken');
   localStorage.removeItem('userEmail');
   localStorage.removeItem('userId');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userBranchId');
 }
 
 export function isAuthenticated(): boolean {

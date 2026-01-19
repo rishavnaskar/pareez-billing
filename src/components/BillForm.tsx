@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CustomerSearch } from './CustomerSearch';
 import { CustomerForm } from './CustomerForm';
 import { BillLogo } from './BillLogo';
-import { addBill, updateBill, generateBillNumber } from '@/lib/firestore';
-import { Customer, ServiceItem, Bill } from '@/lib/types';
+import { BranchSelector } from './BranchSelector';
+import { addBill, updateBill, generateBillNumber, getCustomers } from '@/lib/firestore';
+import { getBranchById } from '@/lib/branches';
+import { Customer, ServiceItem, Bill, Branch } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Trash2, FileText, Share2, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { generateBillPDF } from '@/lib/pdf-generator';
@@ -20,10 +23,13 @@ import { maskPhoneNumber } from '@/lib/phone-mask';
 
 
 export function BillForm() {
+    const { } = useAuth();
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+    const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
     const [billNumber, setBillNumber] = useState('');
     const [services, setServices] = useState<ServiceItem[]>([
-        { id: '1', serviceName: '', price: 0, staffName: '' },
+        { id: '1', serviceName: '', price: 0, discountAmount: 0, staffName: '' },
     ]);
     const [discountAmount, setDiscountAmount] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash');
@@ -33,18 +39,48 @@ export function BillForm() {
     const [hasChanges, setHasChanges] = useState(false);
     const billRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const fetchBillNumber = async () => {
+    // Optimized auto-selection callback
+    const handleCustomerCreated = useCallback(async (newCustomer: { name: string; phone: string; dateOfBirth?: string }) => {
+        setCustomerSearchKey(prev => prev + 1);
+
+        // Auto-select the newly created customer after a short delay
+        const timeoutId = setTimeout(async () => {
             try {
-                const num = await generateBillNumber();
+                const customers = await getCustomers();
+                const createdCustomer = customers.find(c =>
+                    c.name === newCustomer.name &&
+                    c.phone === newCustomer.phone
+                );
+
+                if (createdCustomer) {
+                    setSelectedCustomer(createdCustomer);
+                }
+            } catch (error) {
+                console.error('Error auto-selecting customer:', error);
+            }
+        }, 500);
+
+        // Cleanup timeout on unmount
+        return () => clearTimeout(timeoutId);
+    }, []);
+
+    useEffect(() => {
+        const fetchBranchAndBillNumber = async () => {
+            if (!selectedBranchId) return;
+
+            try {
+                const branch = await getBranchById(selectedBranchId);
+                setSelectedBranch(branch);
+
+                const num = await generateBillNumber(selectedBranchId);
                 setBillNumber(num);
             } catch (error) {
-                console.error('Error generating bill number:', error);
+                console.error('Error fetching branch or generating bill number:', error);
                 setBillNumber(`PRZ-${Date.now()}`);
             }
         };
-        fetchBillNumber();
-    }, []);
+        fetchBranchAndBillNumber();
+    }, [selectedBranchId]);
 
     // Detect changes when bill is saved
     useEffect(() => {
@@ -73,7 +109,7 @@ export function BillForm() {
     const addService = () => {
         setServices([
             ...services,
-            { id: Date.now().toString(), serviceName: '', price: 0, staffName: '' },
+            { id: Date.now().toString(), serviceName: '', price: 0, discountAmount: 0, staffName: '' },
         ]);
     };
 
@@ -90,11 +126,17 @@ export function BillForm() {
     };
 
     const subtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
-    const totalAmount = subtotal - discountAmount;
+    const serviceDiscounts = services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
+    const totalAmount = subtotal - serviceDiscounts - discountAmount;
 
     const handleSaveBill = async () => {
         if (!selectedCustomer) {
             alert('Please select a customer');
+            return;
+        }
+
+        if (!selectedBranchId || !selectedBranch) {
+            alert('Please select a branch');
             return;
         }
 
@@ -110,6 +152,9 @@ export function BillForm() {
                 customerId: selectedCustomer.id,
                 customerName: selectedCustomer.name,
                 customerPhone: selectedCustomer.phone,
+                branchId: selectedBranchId,
+                branchName: selectedBranch.name,
+                branchAddress: selectedBranch.address,
                 services,
                 subtotal,
                 discountAmount,
@@ -119,7 +164,7 @@ export function BillForm() {
 
             if (savedBill) {
                 // Update existing bill
-                await updateBill(selectedCustomer.id, savedBill.id, billData);
+                await updateBill(savedBill.id, billData);
                 setSavedBill({
                     ...billData,
                     id: savedBill.id,
@@ -224,10 +269,12 @@ export function BillForm() {
 
     const resetForm = () => {
         setSelectedCustomer(null);
-        setServices([{ id: '1', serviceName: '', price: 0, staffName: '' }]);
+        setServices([{ id: '1', serviceName: '', price: 0, discountAmount: 0, staffName: '' }]);
         setDiscountAmount(0);
         setSavedBill(null);
-        generateBillNumber().then(setBillNumber);
+        if (selectedBranchId) {
+            generateBillNumber(selectedBranchId).then(setBillNumber);
+        }
     };
 
     const currentDateTime = new Date();
@@ -269,6 +316,14 @@ export function BillForm() {
                             </div>
                         </div>
 
+                        {/* Branch Selection */}
+                        <BranchSelector
+                            selectedBranchId={selectedBranchId}
+                            onBranchChange={setSelectedBranchId}
+                        />
+
+                        <Separator />
+
                         {/* Customer Selection */}
                         <div className="space-y-3">
                             <Label>Customer</Label>
@@ -277,9 +332,7 @@ export function BillForm() {
                                 onSelect={setSelectedCustomer}
                                 selectedCustomer={selectedCustomer}
                             />
-                            <CustomerForm onSuccess={() => {
-                                setCustomerSearchKey(prev => prev + 1);
-                            }} />
+                            <CustomerForm onSuccess={handleCustomerCreated} />
                         </div>
 
                         <Separator />
@@ -302,7 +355,7 @@ export function BillForm() {
                             {services.map((service) => (
                                 <div
                                     key={service.id}
-                                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-4 sm:gap-3 sm:p-4"
+                                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-5 sm:gap-3 sm:p-4"
                                 >
                                     <div className="space-y-1 sm:col-span-2">
                                         <Label className="text-xs">Service Name</Label>
@@ -323,6 +376,19 @@ export function BillForm() {
                                             value={service.price || ''}
                                             onChange={(e) =>
                                                 updateService(service.id, 'price', parseFloat(e.target.value) || 0)
+                                            }
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">Discount (₹)</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="0"
+                                            min="0"
+                                            value={service.discountAmount || ''}
+                                            onChange={(e) =>
+                                                updateService(service.id, 'discountAmount', parseFloat(e.target.value) || 0)
                                             }
                                             className="text-sm"
                                         />
@@ -363,8 +429,14 @@ export function BillForm() {
                                 <span>Subtotal</span>
                                 <span>₹{subtotal.toFixed(2)}</span>
                             </div>
+                            {serviceDiscounts > 0 && (
+                                <div className="flex justify-between text-sm text-green-600">
+                                    <span>Service Discounts</span>
+                                    <span>-₹{serviceDiscounts.toFixed(2)}</span>
+                                </div>
+                            )}
                             <div className="flex items-center justify-between gap-4">
-                                <Label className="text-sm">Discount (₹)</Label>
+                                <Label className="text-sm">Additional Discount (₹)</Label>
                                 <Input
                                     type="number"
                                     className="w-20 sm:w-24 text-sm"
@@ -377,7 +449,7 @@ export function BillForm() {
                             </div>
                             {discountAmount > 0 && (
                                 <div className="flex justify-between text-sm text-green-600">
-                                    <span>Discount Applied</span>
+                                    <span>Additional Discount</span>
                                     <span>-₹{discountAmount.toFixed(2)}</span>
                                 </div>
                             )}
@@ -463,6 +535,12 @@ export function BillForm() {
                                     <BillLogo />
                                 </div>
                                 <p className="text-sm text-gray-600">Unisex Professional Salon</p>
+                                {selectedBranch && (
+                                    <div className="mt-2 text-xs text-gray-500">
+                                        <p className="font-medium">{selectedBranch.name}</p>
+                                        <p>{selectedBranch.address}</p>
+                                    </div>
+                                )}
                             </div>
 
                             <Separator className="my-4" />
@@ -508,18 +586,27 @@ export function BillForm() {
                                 <thead>
                                     <tr className="border-b">
                                         <th className="py-2 text-left">Service</th>
-                                        <th className="py-2 text-right">Amount</th>
+                                        <th className="py-2 text-right">Price</th>
+                                        <th className="py-2 text-right">Discount</th>
+                                        <th className="py-2 text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {services
                                         .filter((s) => s.serviceName)
-                                        .map((service) => (
-                                            <tr key={service.id} className="border-b border-gray-100">
-                                                <td className="py-2">{service.serviceName}</td>
-                                                <td className="py-2 text-right">₹{service.price.toFixed(2)}</td>
-                                            </tr>
-                                        ))}
+                                        .map((service) => {
+                                            const serviceTotal = service.price - service.discountAmount;
+                                            return (
+                                                <tr key={service.id} className="border-b border-gray-100">
+                                                    <td className="py-2">{service.serviceName}</td>
+                                                    <td className="py-2 text-right">₹{service.price.toFixed(2)}</td>
+                                                    <td className="py-2 text-right text-green-600">
+                                                        {service.discountAmount > 0 ? `-₹${service.discountAmount.toFixed(2)}` : '-'}
+                                                    </td>
+                                                    <td className="py-2 text-right font-medium">₹{serviceTotal.toFixed(2)}</td>
+                                                </tr>
+                                            );
+                                        })}
                                 </tbody>
                             </table>
 
@@ -529,9 +616,15 @@ export function BillForm() {
                                     <span>Subtotal</span>
                                     <span>₹{subtotal.toFixed(2)}</span>
                                 </div>
+                                {serviceDiscounts > 0 && (
+                                    <div className="flex justify-between text-green-600">
+                                        <span>Service Discounts</span>
+                                        <span>-₹{serviceDiscounts.toFixed(2)}</span>
+                                    </div>
+                                )}
                                 {discountAmount > 0 && (
                                     <div className="flex justify-between text-green-600">
-                                        <span>Discount</span>
+                                        <span>Additional Discount</span>
                                         <span>-₹{discountAmount.toFixed(2)}</span>
                                     </div>
                                 )}

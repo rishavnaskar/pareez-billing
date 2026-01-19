@@ -17,15 +17,18 @@ import { Bill } from '@/lib/types';
 import { BillPreview } from './BillPreview';
 import { Receipt } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function BillHistory() {
+    const { user } = useAuth();
     const [bills, setBills] = useState<Bill[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchBills = async () => {
             try {
-                const data = await getAllBills();
+                const branchId = user?.role === 'user' ? user.branchId : undefined;
+                const data = await getAllBills(branchId);
                 setBills(data);
             } catch (error) {
                 console.error('Error fetching bills:', error);
@@ -34,7 +37,7 @@ export function BillHistory() {
             }
         };
         fetchBills();
-    }, []);
+    }, [user]);
 
     return (
         <Card>
@@ -98,11 +101,20 @@ export function BillHistory() {
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium text-xs sm:text-sm min-w-[100px]">
                                                     ₹{bill.totalAmount.toFixed(2)}
-                                                    {bill.discountAmount > 0 && (
-                                                        <div className="text-xs text-green-600">
-                                                            Discount
-                                                        </div>
-                                                    )}
+                                                    {(() => {
+                                                        const serviceDiscounts = bill.services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
+                                                        const hasServiceDiscounts = serviceDiscounts > 0;
+                                                        const hasAdditionalDiscount = bill.discountAmount > 0;
+
+                                                        return (hasServiceDiscounts || hasAdditionalDiscount) && (
+                                                            <div className="text-xs text-green-600">
+                                                                {hasServiceDiscounts && 'Service'}
+                                                                {hasServiceDiscounts && hasAdditionalDiscount && ' + '}
+                                                                {hasAdditionalDiscount && 'Additional'}
+                                                                {' Discount'}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </TableCell>
                                             </TableRow>
                                         </BillPreview>

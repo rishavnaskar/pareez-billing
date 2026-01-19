@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    // Helper function to check if user belongs to the branch
+    function belongsToBranch(branchId) {
+      return isAuthenticated() && 
+             request.auth.token.role == 'user' && 
+             request.auth.token.branchId == branchId;
+    }
+    
+    // Helper function to check if user can access the branch
+    function canAccessBranch(branchId) {
+      return isAdmin() || belongsToBranch(branchId);
+    }
+    
+    // Branches collection - read by all authenticated users, write by admins only
+    match /branches/{branchId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Customers collection - universal (not branch-specific)
+    // All authenticated users can read/write customers
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+    
+    // Bills collection - branch-specific access
+    match /bills/{billId} {
+      // Admins can read all bills
+      // Users can only read bills from their branch
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && 
+                      request.auth.token.role == 'user' && 
+                      resource.data.branchId == request.auth.token.branchId);
+      
+      // Admins can create bills for any branch
+      // Users can only create bills for their branch
+      allow create: if isAdmin() || 
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'user' && 
+                        request.resource.data.branchId == request.auth.token.branchId);
+      
+      // Admins can update/delete any bill
+      // Users can only update/delete bills from their branch
+      allow update, delete: if isAdmin() || 
+                               (isAuthenticated() && 
+                                request.auth.token.role == 'user' && 
+                                resource.data.branchId == request.auth.token.branchId);
+    }
+  }
+}

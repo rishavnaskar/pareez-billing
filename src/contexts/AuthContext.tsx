@@ -3,10 +3,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getStoredUser, isAuthenticated, clearStoredAuth, logoutUser } from '@/lib/auth';
 
+import { UserRole } from '@/lib/types';
+
 interface AuthUser {
     uid: string;
     email: string;
     displayName?: string;
+    role: UserRole;
+    branchId?: string;
 }
 
 interface AuthContextType {

@@ -149,18 +149,41 @@ export default function BillPreviewPage() {
                             </div>
                         </div>
 
+                        {/* Branch Information */}
+                        {bill.branchName && (
+                            <div className="mb-6">
+                                {bill.branchAddress && (
+                                    <div>
+                                        <p className="text-sm text-gray-600">Address</p>
+                                        <p className="font-medium text-gray-900">{bill.branchAddress}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Services Rendered */}
                         <div className="mb-6">
                             <h3 className="font-semibold text-gray-900 mb-3">Services Rendered</h3>
 
                             {/* Mobile View */}
                             <div className="sm:hidden space-y-2">
-                                {bill.services.map((service: ServiceItem, index: number) => (
-                                    <div key={index} className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
-                                        <span className="font-medium text-gray-900">{service.serviceName}</span>
-                                        <span className="font-semibold text-gray-900">₹{service.price.toFixed(2)}</span>
-                                    </div>
-                                ))}
+                                {bill.services.map((service: ServiceItem, index: number) => {
+                                    const serviceTotal = service.price - (service.discountAmount || 0);
+                                    return (
+                                        <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className="font-medium text-gray-900">{service.serviceName}</span>
+                                                <span className="font-semibold text-gray-900">₹{serviceTotal.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs text-gray-600">
+                                                <span>Price: ₹{service.price.toFixed(2)}</span>
+                                                {service.discountAmount > 0 && (
+                                                    <span className="text-green-600">Discount: -₹{service.discountAmount.toFixed(2)}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
 
                             {/* Desktop View */}
@@ -170,15 +193,24 @@ export default function BillPreviewPage() {
                                         <tr>
                                             <th className="text-left py-2 text-gray-700 font-semibold">Service</th>
                                             <th className="text-right py-2 text-gray-700 font-semibold">Price</th>
+                                            <th className="text-right py-2 text-gray-700 font-semibold">Discount</th>
+                                            <th className="text-right py-2 text-gray-700 font-semibold">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {bill.services.map((service: ServiceItem, index: number) => (
-                                            <tr key={index} className="border-b border-gray-100">
-                                                <td className="py-3 text-gray-900">{service.serviceName}</td>
-                                                <td className="py-3 text-right text-gray-900 font-medium">₹{service.price.toFixed(2)}</td>
-                                            </tr>
-                                        ))}
+                                        {bill.services.map((service: ServiceItem, index: number) => {
+                                            const serviceTotal = service.price - (service.discountAmount || 0);
+                                            return (
+                                                <tr key={index} className="border-b border-gray-100">
+                                                    <td className="py-3 text-gray-900">{service.serviceName}</td>
+                                                    <td className="py-3 text-right text-gray-900">₹{service.price.toFixed(2)}</td>
+                                                    <td className="py-3 text-right text-green-600">
+                                                        {service.discountAmount > 0 ? `-₹${service.discountAmount.toFixed(2)}` : '-'}
+                                                    </td>
+                                                    <td className="py-3 text-right text-gray-900 font-medium">₹{serviceTotal.toFixed(2)}</td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -192,9 +224,18 @@ export default function BillPreviewPage() {
                                     <span>Subtotal:</span>
                                     <span className="font-medium">₹{bill.subtotal.toFixed(2)}</span>
                                 </div>
+                                {(() => {
+                                    const serviceDiscounts = bill.services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
+                                    return serviceDiscounts > 0 && (
+                                        <div className="flex justify-between text-green-600">
+                                            <span>Service Discounts:</span>
+                                            <span className="font-medium">-₹{serviceDiscounts.toFixed(2)}</span>
+                                        </div>
+                                    );
+                                })()}
                                 {bill.discountAmount > 0 && (
                                     <div className="flex justify-between text-green-600">
-                                        <span>Discount:</span>
+                                        <span>Additional Discount:</span>
                                         <span className="font-medium">-₹{bill.discountAmount.toFixed(2)}</span>
                                     </div>
                                 )}

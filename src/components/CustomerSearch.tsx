@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,26 +24,48 @@ import { maskPhoneNumber } from '@/lib/phone-mask';
 interface CustomerSearchProps {
     onSelect: (customer: Customer | null) => void;
     selectedCustomer: Customer | null;
+    refreshKey?: number;
 }
 
-export function CustomerSearch({ onSelect, selectedCustomer }: CustomerSearchProps) {
+export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: CustomerSearchProps) {
     const [open, setOpen] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Memoized customer selection handler
+    const handleCustomerSelect = useCallback((customer: Customer) => {
+        onSelect(customer);
+        setOpen(false);
+    }, [onSelect]);
+
+    // Fetch customers with error handling
     useEffect(() => {
+        let isMounted = true;
+
         const fetchCustomers = async () => {
             try {
                 const data = await getCustomers();
-                setCustomers(data);
+                if (isMounted) {
+                    setCustomers(data);
+                }
             } catch (error) {
                 console.error('Error fetching customers:', error);
+                if (isMounted) {
+                    setCustomers([]);
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
+
         fetchCustomers();
-    }, []);
+
+        return () => {
+            isMounted = false;
+        };
+    }, [refreshKey]);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -79,10 +101,7 @@ export function CustomerSearch({ onSelect, selectedCustomer }: CustomerSearchPro
                                 <CommandItem
                                     key={customer.id}
                                     value={`${customer.name} ${customer.phone}`}
-                                    onSelect={() => {
-                                        onSelect(customer);
-                                        setOpen(false);
-                                    }}
+                                    onSelect={() => handleCustomerSelect(customer)}
                                 >
                                     <Check
                                         className={cn(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,7 @@ import { getPhoneValidationError } from '@/lib/validation';
 import { UserPlus } from 'lucide-react';
 
 interface CustomerFormProps {
-    onSuccess: () => void;
+    onSuccess: (customer: { name: string; phone: string; dateOfBirth?: string }) => void;
 }
 
 export function CustomerForm({ onSuccess }: CustomerFormProps) {
@@ -55,7 +55,7 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
             setOpen(false);
             setFormData({ name: '', phone: '', dateOfBirth: '' });
             setPhoneError(null);
-            onSuccess();
+            onSuccess(formData);
         } catch (error) {
             console.error('Error saving customer:', error);
             alert('Failed to save customer. Please check your Firebase configuration.');
@@ -64,15 +64,17 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
         }
     };
 
-    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const phone = e.target.value;
-        setFormData({ ...formData, phone });
+    // Optimized phone input handler
+    const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        // Only allow digits and limit to 10 characters
+        const phone = e.target.value.replace(/\D/g, '').slice(0, 10);
+        setFormData(prev => ({ ...prev, phone }));
 
         // Clear error when user starts typing
         if (phoneError) {
             setPhoneError(null);
         }
-    };
+    }, [phoneError]);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -93,7 +95,7 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
                             id="name"
                             value={formData.name}
                             onChange={(e) =>
-                                setFormData({ ...formData, name: e.target.value })
+                                setFormData(prev => ({ ...prev, name: e.target.value }))
                             }
                             placeholder="Customer name"
                             required
@@ -107,6 +109,7 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
                             value={formData.phone}
                             onChange={handlePhoneChange}
                             placeholder="Phone number"
+                            maxLength={10}
                             required
                             className={phoneError ? 'border-red-500' : ''}
                         />
@@ -121,7 +124,7 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
                             type="date"
                             value={formData.dateOfBirth}
                             onChange={(e) =>
-                                setFormData({ ...formData, dateOfBirth: e.target.value })
+                                setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))
                             }
                         />
                     </div>

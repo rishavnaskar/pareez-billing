@@ -169,16 +169,25 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             <thead>
                                 <tr className="border-b">
                                     <th className="py-2 text-left">Service</th>
-                                    <th className="py-2 text-right">Amount</th>
+                                    <th className="py-2 text-right">Price</th>
+                                    <th className="py-2 text-right">Discount</th>
+                                    <th className="py-2 text-right">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {bill.services.map((service) => (
-                                    <tr key={service.id} className="border-b border-gray-100">
-                                        <td className="py-2">{service.serviceName}</td>
-                                        <td className="py-2 text-right">₹{service.price.toFixed(2)}</td>
-                                    </tr>
-                                ))}
+                                {bill.services.map((service) => {
+                                    const serviceTotal = service.price - (service.discountAmount || 0);
+                                    return (
+                                        <tr key={service.id} className="border-b border-gray-100">
+                                            <td className="py-2">{service.serviceName}</td>
+                                            <td className="py-2 text-right">₹{service.price.toFixed(2)}</td>
+                                            <td className="py-2 text-right text-green-600">
+                                                {service.discountAmount > 0 ? `-₹${service.discountAmount.toFixed(2)}` : '-'}
+                                            </td>
+                                            <td className="py-2 text-right font-medium">₹{serviceTotal.toFixed(2)}</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
 
@@ -188,9 +197,18 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                                 <span>Subtotal</span>
                                 <span>₹{bill.subtotal.toFixed(2)}</span>
                             </div>
+                            {(() => {
+                                const serviceDiscounts = bill.services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
+                                return serviceDiscounts > 0 && (
+                                    <div className="flex justify-between text-green-600">
+                                        <span>Service Discounts</span>
+                                        <span>-₹{serviceDiscounts.toFixed(2)}</span>
+                                    </div>
+                                );
+                            })()}
                             {bill.discountAmount > 0 && (
                                 <div className="flex justify-between text-green-600">
-                                    <span>Discount</span>
+                                    <span>Additional Discount</span>
                                     <span>-₹{bill.discountAmount.toFixed(2)}</span>
                                 </div>
                             )}

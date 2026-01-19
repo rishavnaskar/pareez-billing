@@ -43,8 +43,21 @@ export function getPhoneValidationError(phone: string): string | null {
     return 'Phone number is required';
   }
   
-  if (!validateIndianPhoneNumber(phone)) {
-    return 'Please enter a valid Indian phone number (e.g., 9876543210, 09876543210, or +919876543210)';
+  // Remove all non-digit characters for validation
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  // Enforce maximum 10 digits
+  if (cleanPhone.length > 10) {
+    return 'Phone number must be exactly 10 digits';
+  }
+  
+  if (cleanPhone.length !== 10) {
+    return 'Phone number must be exactly 10 digits';
+  }
+  
+  // Validate 10-digit mobile number (starting with 6,7,8,9)
+  if (!/^[6789]\d{9}$/.test(cleanPhone)) {
+    return 'Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9';
   }
   
   return null;

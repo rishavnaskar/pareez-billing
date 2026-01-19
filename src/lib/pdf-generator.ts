@@ -95,15 +95,19 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   pdf.text('SERVICES', margin, yPos);
   yPos += 8;
 
-  // Table header
-  pdf.setFillColor(255, 140, 0);
-  pdf.rect(margin, yPos, contentWidth * 0.7, 8, 'F');
-  pdf.rect(margin + contentWidth * 0.7, yPos, contentWidth * 0.3, 8, 'F');
+  // Table headers
+  pdf.setFillColor(0, 0, 0);
+  pdf.rect(margin, yPos, contentWidth * 0.4, 8, 'F');
+  pdf.rect(margin + contentWidth * 0.4, yPos, contentWidth * 0.2, 8, 'F');
+  pdf.rect(margin + contentWidth * 0.6, yPos, contentWidth * 0.2, 8, 'F');
+  pdf.rect(margin + contentWidth * 0.8, yPos, contentWidth * 0.2, 8, 'F');
   yPos += 6;
 
   pdf.setTextColor(255, 255, 255);
   pdf.text('Service Description', margin + 4, yPos);
-  pdf.text('Amount', pageWidth - margin - 4, yPos, { align: 'right' });
+  pdf.text('Price', margin + contentWidth * 0.4 + 4, yPos);
+  pdf.text('Discount', margin + contentWidth * 0.6 + 4, yPos);
+  pdf.text('Total', pageWidth - margin - 4, yPos, { align: 'right' });
   yPos += 6;
 
   // Table rows
@@ -120,7 +124,14 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
       
       pdf.text(service.serviceName, margin + 4, yPos);
       const price = service.price || 0;
-      pdf.text(price.toFixed(2), pageWidth - margin - 4, yPos, { align: 'right' });
+      const discount = service.discountAmount || 0;
+      const total = price - discount;
+      
+      pdf.text(price.toFixed(2), margin + contentWidth * 0.4 + 4, yPos);
+      pdf.setTextColor(0, 128, 0);
+      pdf.text(discount > 0 ? `-${discount.toFixed(2)}` : '-', margin + contentWidth * 0.6 + 4, yPos);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(total.toFixed(2), pageWidth - margin - 4, yPos, { align: 'right' });
       yPos += 8;
     }
   });
@@ -144,13 +155,22 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   pdf.text(calculatedSubtotal.toFixed(2), pageWidth - margin, yPos, { align: 'right' });
   yPos += 6;
 
-  if (discountAmount > 0) {
+  const serviceDiscounts = services.reduce((sum, service) => sum + (service.discountAmount || 0), 0);
+  if (serviceDiscounts > 0) {
     pdf.setTextColor(0, 128, 0);
-    pdf.text('Discount Applied:', margin + 20, yPos);
-    pdf.text(`-${discountAmount.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    pdf.setTextColor(0, 0, 0);
+    pdf.text('Service Discounts:', margin + 20, yPos);
+    pdf.text(`-${serviceDiscounts.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
     yPos += 6;
   }
+
+  if (discountAmount > 0) {
+    pdf.setTextColor(0, 128, 0);
+    pdf.text('Additional Discount:', margin + 20, yPos);
+    pdf.text(`-${discountAmount.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
+    yPos += 6;
+  }
+  pdf.setTextColor(0, 0, 0);
+  yPos += 6;
 
   pdf.text('Payment Method:', margin + 20, yPos);
   let paymentText = '';
