@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { maskPhoneNumber } from '@/lib/phone-mask';
@@ -15,6 +15,7 @@ import {
 import { getAllBills } from '@/lib/firestore';
 import { getBranches } from '@/lib/branches';
 import { Bill, Branch } from '@/lib/types';
+import { cache } from '@/lib/cache';
 import { BillPreview } from './BillPreview';
 import { Receipt } from 'lucide-react';
 import { format } from 'date-fns';
@@ -43,32 +44,58 @@ export function BillHistory() {
     const hasActiveFilters = startDate || endDate || (user?.role === 'admin' && selectedBranchId !== 'all');
 
     // Filter bills based on branch and date range
-    const filteredBills = allBills.filter(bill => {
-        const billDate = new Date(bill.createdAt);
+    const filteredBills = useMemo(() => {
+        return allBills.filter(bill => {
+            const billDate = new Date(bill.createdAt);
 
-        // Branch filtering
-        const branchFilter = user?.role === 'user' ? bill.branchId === user.branchId :
-            (user?.role === 'admin' && selectedBranchId !== 'all' ? bill.branchId === selectedBranchId : true);
+            // Branch filtering with debugging
+            let branchFilter = true;
+            if (user?.role === 'user') {
+                branchFilter = bill.branchId === user.branchId;
+                // Debug logging for non-admin users
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('User branch filter:', {
+                        userRole: user.role,
+                        userBranchId: user.branchId,
+                        billBranchId: bill.branchId,
+                        billId: bill.id,
+                        matches: branchFilter
+                    });
+                }
+            } else if (user?.role === 'admin' && selectedBranchId !== 'all') {
+                branchFilter = bill.branchId === selectedBranchId;
+            }
 
-        // Date filtering
-        let dateFilter = true;
-        if (startDate) {
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            dateFilter = dateFilter && billDate >= start;
-        }
-        if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
-            dateFilter = dateFilter && billDate <= end;
-        }
+            // Date filtering
+            let dateFilter = true;
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                dateFilter = dateFilter && billDate >= start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                dateFilter = dateFilter && billDate <= end;
+            }
 
-        return branchFilter && dateFilter;
-    });
+            return branchFilter && dateFilter;
+        });
+    }, [allBills, user, selectedBranchId, startDate, endDate]);
+
+    // Debug final filtered result
+    if (process.env.NODE_ENV === 'development' && user?.role === 'user') {
+        console.log('Final filtered bills count:', filteredBills.length);
+        console.log('Filtered bills:', filteredBills.map(b => ({ id: b.id, billNumber: b.billNumber, branchId: b.branchId })));
+    }
 
     useEffect(() => {
         const fetchData = async () => {
             try {
+
+                // Clear cache to ensure fresh data when user changes
+                cache.clear();
+
                 // Fetch branches for admin users
                 if (user?.role === 'admin') {
                     const branchesData = await getBranches();
@@ -76,7 +103,20 @@ export function BillHistory() {
                 }
 
                 // Fetch all bills (we'll filter client-side)
+                // Important: Don't pass branchId so we get ALL bills for client-side filtering
                 const data = await getAllBills();
+
+                // Debug bills data
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('Fetched bills:', data.length);
+                    console.log('All bills with branch IDs:', data.map(bill => ({
+                        id: bill.id,
+                        billNumber: bill.billNumber,
+                        branchId: bill.branchId,
+                        customerName: bill.customerName
+                    })));
+                }
+
                 setAllBills(data);
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -90,6 +130,29 @@ export function BillHistory() {
     return (
         <Card>
             <CardHeader className="pb-3 sm:pb-6">
+                {/* Debug Info - Remove in production */}
+                {process.env.NODE_ENV === 'development' && user?.role === 'user' && (
+                    <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs">
+                        <div><strong>Debug Info:</strong></div>
+                        <div>User Role: {user.role}</div>
+                        <div>User Branch ID: {user.branchId || 'NOT SET'}</div>
+                        <div>Total Bills Fetched: {allBills.length}</div>
+                        <div>Filtered Bills: {filteredBills.length}</div>
+                        <div className="mt-2"><strong>All Bills:</strong></div>
+                        {allBills.length === 0 ? (
+                            <div className="text-red-600">NO BILLS FOUND IN DATABASE</div>
+                        ) : (
+                            <div className="max-h-32 overflow-y-auto">
+                                {allBills.map(bill => (
+                                    <div key={bill.id} className="border-b border-yellow-200 py-1">
+                                        <div>{bill.billNumber} - {bill.customerName}</div>
+                                        <div className="text-gray-600">Branch: {bill.branchId} {bill.branchId === user.branchId ? '✅' : '❌'}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className="flex flex-col gap-4">
                     <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                         <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
