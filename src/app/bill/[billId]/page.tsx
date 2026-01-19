@@ -161,10 +161,8 @@ export default function BillPreviewPage() {
                             </div>
                         )}
 
-                        {/* Services Rendered */}
+                        {/* Services */}
                         <div className="mb-6">
-                            <h3 className="font-semibold text-gray-900 mb-3">Services Rendered</h3>
-
                             {/* Mobile View */}
                             <div className="sm:hidden space-y-2">
                                 {bill.services.map((service: ServiceItem, index: number) => {

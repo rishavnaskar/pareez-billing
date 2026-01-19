@@ -10,9 +10,8 @@
  * 3. Run: node scripts/initialize-branches.js
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const admin = require('firebase-admin');
-
-// Initialize Firebase Admin SDK
 const serviceAccount = require('./serviceAccountKey.json');
 
 admin.initializeApp({

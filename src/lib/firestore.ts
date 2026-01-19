@@ -10,9 +10,11 @@ import {
   Timestamp,
   where,
   getDoc,
+  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Customer, Bill } from './types';
+import { cache, CACHE_KEYS } from './cache';
 
 // Customer operations
 export async function addCustomer(customer: Omit<Customer, 'id' | 'createdAt'>): Promise<string> {
@@ -20,32 +22,67 @@ export async function addCustomer(customer: Omit<Customer, 'id' | 'createdAt'>):
     ...customer,
     createdAt: Timestamp.now(),
   });
+  
+  // Invalidate customers cache
+  cache.clear();
+  
   return docRef.id;
 }
 
 export async function getCustomers(): Promise<Customer[]> {
+  // Check cache first
+  const cached = cache.get<Customer[]>(CACHE_KEYS.CUSTOMERS);
+  if (cached) {
+    return cached;
+  }
+
   const querySnapshot = await getDocs(
     query(collection(db, 'customers'), orderBy('createdAt', 'desc'))
   );
-  return querySnapshot.docs.map((doc) => ({
+  const customers = querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate() || new Date(),
   })) as Customer[];
+
+  // Cache for 5 minutes
+  cache.set(CACHE_KEYS.CUSTOMERS, customers, 5 * 60 * 1000);
+  
+  return customers;
 }
 
 export async function checkDuplicateCustomer(name: string, phone: string): Promise<boolean> {
-  const customers = await getCustomers();
-  return customers.some(
-    customer => 
-      customer.name.toLowerCase().trim() === name.toLowerCase().trim() ||
-      customer.phone === phone
+  // Use server-side queries instead of fetching all customers
+  const nameQuery = query(
+    collection(db, 'customers'),
+    where('name', '==', name.trim()),
+    limit(1)
   );
+  
+  const phoneQuery = query(
+    collection(db, 'customers'),
+    where('phone', '==', phone),
+    limit(1)
+  );
+  
+  const [nameSnapshot, phoneSnapshot] = await Promise.all([
+    getDocs(nameQuery),
+    getDocs(phoneQuery)
+  ]);
+  
+  return !nameSnapshot.empty || !phoneSnapshot.empty;
 }
 
 export async function searchCustomers(searchTerm: string): Promise<Customer[]> {
+  // For better performance, implement server-side search with proper indexing
+  // For now, keep client-side search but optimize with early return
+  if (!searchTerm || searchTerm.trim().length < 2) {
+    return [];
+  }
+  
   const customers = await getCustomers();
-  const term = searchTerm.toLowerCase();
+  const term = searchTerm.toLowerCase().trim();
+  
   return customers.filter(
     (c) =>
       c.name.toLowerCase().includes(term) ||
@@ -73,6 +110,10 @@ export async function addBill(
     customerId,
     createdAt: Timestamp.now(),
   });
+  
+  // Invalidate bills cache
+  cache.clear();
+  
   return docRef.id;
 }
 
@@ -82,6 +123,9 @@ export async function updateBill(
 ): Promise<void> {
   const docRef = doc(db, 'bills', billId);
   await updateDoc(docRef, billData);
+  
+  // Invalidate bills cache
+  cache.clear();
 }
 
 export async function getBillsForCustomer(customerId: string, branchId?: string): Promise<Bill[]> {
@@ -103,6 +147,14 @@ export async function getBillsForCustomer(customerId: string, branchId?: string)
 }
 
 export async function getAllBills(branchId?: string): Promise<Bill[]> {
+  const cacheKey = CACHE_KEYS.BILLS(branchId);
+  
+  // Check cache first (shorter TTL for bills as they change more frequently)
+  const cached = cache.get<Bill[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   let q = query(collection(db, 'bills'));
   
   if (branchId) {
@@ -112,12 +164,16 @@ export async function getAllBills(branchId?: string): Promise<Bill[]> {
   q = query(q, orderBy('createdAt', 'desc'));
   
   const querySnapshot = await getDocs(q);
-  
-  return querySnapshot.docs.map((doc) => ({
+  const bills = querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate() || new Date(),
   })) as Bill[];
+
+  // Cache for 2 minutes (bills change more frequently)
+  cache.set(cacheKey, bills, 2 * 60 * 1000);
+  
+  return bills;
 }
 
 export async function getBillById(billId: string): Promise<Bill | null> {
@@ -137,26 +193,22 @@ export async function getBillById(billId: string): Promise<Bill | null> {
 
 export async function generateBillNumber(branchId?: string): Promise<string> {
   const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
   
-  let q = query(collection(db, 'bills'));
+  let q = query(
+    collection(db, 'bills'),
+    where('createdAt', '>=', Timestamp.fromDate(startOfDay)),
+    where('createdAt', '<', Timestamp.fromDate(endOfDay))
+  );
   
   if (branchId) {
     q = query(q, where('branchId', '==', branchId));
   }
   
-  q = query(q, orderBy('createdAt', 'desc'));
-  
   const querySnapshot = await getDocs(q);
-  
-  const todayBillCount = querySnapshot.docs.filter((doc) => {
-    const billDate = doc.data().createdAt?.toDate() || new Date();
-    return (
-      billDate.getFullYear() === today.getFullYear() &&
-      billDate.getMonth() === today.getMonth() &&
-      billDate.getDate() === today.getDate()
-    );
-  }).length;
+  const todayBillCount = querySnapshot.size;
   
   return `PRZ-${dateStr}-${String(todayBillCount + 1).padStart(3, '0')}`;
 }

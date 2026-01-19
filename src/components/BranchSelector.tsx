@@ -35,7 +35,7 @@ export function BranchSelector({ selectedBranchId, onBranchChange }: BranchSelec
             }
         };
         fetchBranches();
-    }, [user]);
+    }, [user, onBranchChange, selectedBranchId]);
 
     if (loading) {
         return <div className="text-sm text-gray-500">Loading branches...</div>;

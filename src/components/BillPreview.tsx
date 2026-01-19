@@ -162,6 +162,16 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             </div>
                         </div>
 
+                        {/* Branch Address */}
+                        {bill.branchAddress && (
+                            <div className="mb-4 text-sm">
+                                <div>
+                                    <span className="text-gray-500">Address:</span>
+                                    <span className="ml-2 font-medium">{bill.branchAddress}</span>
+                                </div>
+                            </div>
+                        )}
+
                         <Separator className="my-4" />
 
                         {/* Services Table */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -126,3 +126,5 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
         </Popover>
     );
 }
+
+export const CustomerSearchMemo = memo(CustomerSearch);

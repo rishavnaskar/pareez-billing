@@ -11,6 +11,7 @@
  * 4. Run: node scripts/set-user-claims.js
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK

@@ -17,7 +17,7 @@ function AuthenticatedContent() {
   const { logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       {/* Header */}
       <header className="bg-black shadow-lg">
         <div className="mx-auto max-w-7xl px-2 py-3 sm:px-4 sm:py-4 lg:px-8">
@@ -73,9 +73,9 @@ function AuthenticatedContent() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t bg-white py-3 sm:py-4">
+      <footer className="absolute bottom-0 left-0 right-0 border-t bg-white py-3 sm:py-4">
         <div className="mx-auto max-w-7xl px-2 text-center text-xs sm:text-sm text-gray-500">
-          © {new Date().getFullYear()} Pareez Salon
+          &copy; {new Date().getFullYear()} Pareez Salon
         </div>
       </footer>
     </div>
