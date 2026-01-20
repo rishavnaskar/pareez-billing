@@ -18,8 +18,7 @@ Thank you for visiting Pareez!
 
 Follow us on social media:
 Instagram: @pareezsalon
-Facebook: PAREEZ.salon
-Google Review: g.page/r/CQL8v4uFTDjKEBI/review`;
+Facebook: PAREEZ.salon`;
 }
 
 /**

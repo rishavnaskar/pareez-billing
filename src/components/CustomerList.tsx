@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,18 +12,22 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { CustomerForm } from './CustomerForm';
-import { getCustomers } from '@/lib/firestore';
+import { getCustomers, deleteCustomer } from '@/lib/firestore';
 import { Customer } from '@/lib/types';
-import { Search, Users } from 'lucide-react';
+import { Search, Users, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { maskPhoneNumber } from '@/lib/phone-mask';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 export function CustomerList() {
+    const { user } = useAuth();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
-    const fetchCustomers = async () => {
+    const fetchCustomers = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getCustomers();
@@ -33,11 +37,11 @@ export function CustomerList() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchCustomers();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
     const filteredCustomers = customers.filter(
@@ -45,6 +49,20 @@ export function CustomerList() {
             c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.phone.includes(searchTerm)
     );
+
+    const handleDeleteCustomer = async (customer: Customer) => {
+        if (!confirm(`Are you sure you want to delete ${customer.name}?`)) {
+            return;
+        }
+
+        try {
+            await deleteCustomer(customer.id);
+            await fetchCustomers(); // Refresh the list
+        } catch (error) {
+            console.error('Error deleting customer:', error);
+            alert('Failed to delete customer. Please try again.');
+        }
+    };
 
     return (
         <Card>
@@ -54,7 +72,19 @@ export function CustomerList() {
                         <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                         Customers
                     </CardTitle>
-                    <CustomerForm onSuccess={fetchCustomers} />
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchCustomers}
+                            disabled={loading}
+                            className="flex items-center gap-2"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">Refresh</span>
+                        </Button>
+                        <CustomerForm onSuccess={fetchCustomers} editingCustomer={editingCustomer} setEditingCustomer={setEditingCustomer} />
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -83,18 +113,45 @@ export function CustomerList() {
                                         <TableHead className="text-xs sm:text-sm min-w-[120px]">Name</TableHead>
                                         <TableHead className="text-xs sm:text-sm min-w-[150px]">Phone</TableHead>
                                         <TableHead className="text-xs sm:text-sm min-w-[120px]">Date of Birth</TableHead>
+                                        {user?.role === 'admin' && (
+                                            <TableHead className="text-xs sm:text-sm min-w-[100px]">Actions</TableHead>
+                                        )}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredCustomers.map((customer) => (
                                         <TableRow key={customer.id}>
                                             <TableCell className="font-medium text-xs sm:text-sm min-w-[120px]">{customer.name}</TableCell>
-                                            <TableCell className="text-xs sm:text-sm min-w-[150px]">{maskPhoneNumber(customer.phone)}</TableCell>
+                                            <TableCell className="text-xs sm:text-sm min-w-[150px]">
+                                                {user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone)}
+                                            </TableCell>
                                             <TableCell className="text-xs sm:text-sm min-w-[120px]">
                                                 {customer.dateOfBirth
                                                     ? format(new Date(customer.dateOfBirth), 'dd MMM yyyy')
                                                     : '-'}
                                             </TableCell>
+                                            {user?.role === 'admin' && (
+                                                <TableCell className="text-xs sm:text-sm min-w-[100px]">
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setEditingCustomer(customer)}
+                                                            className="h-7 px-2"
+                                                        >
+                                                            <Edit className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteCustomer(customer)}
+                                                            className="h-7 px-2 text-red-600 hover:text-red-700"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))}
                                 </TableBody>

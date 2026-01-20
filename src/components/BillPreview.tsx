@@ -12,6 +12,7 @@ import { Download, Share2 } from 'lucide-react';
 import { generateBillPDF } from '@/lib/pdf-generator';
 import { maskPhoneNumber } from '@/lib/phone-mask';
 import { shareBillViaWhatsApp } from '@/lib/whatsapp';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BillPreviewProps {
     bill: Bill;
@@ -19,6 +20,7 @@ interface BillPreviewProps {
 }
 
 export function BillPreview({ bill, children }: BillPreviewProps) {
+    const { user } = useAuth();
     const billRef = useRef<HTMLDivElement>(null);
 
     const generatePDF = async (): Promise<Blob | null> => {
@@ -147,7 +149,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             </div>
                             <div>
                                 <span className="text-gray-500">Phone:</span>
-                                <span className="ml-2">{maskPhoneNumber(bill.customerPhone)}</span>
+                                <span className="ml-2">{user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone)}</span>
                             </div>
                         </div>
 

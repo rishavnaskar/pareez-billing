@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,15 +11,18 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { addCustomer, checkDuplicateCustomer } from '@/lib/firestore';
+import { addCustomer, updateCustomer, checkDuplicateCustomer } from '@/lib/firestore';
 import { getPhoneValidationError } from '@/lib/validation';
 import { UserPlus } from 'lucide-react';
+import { Customer } from '@/lib/types';
 
 interface CustomerFormProps {
     onSuccess: (customer: { name: string; phone: string; dateOfBirth?: string }) => void;
+    editingCustomer?: Customer | null;
+    setEditingCustomer?: (customer: Customer | null) => void;
 }
 
-export function CustomerForm({ onSuccess }: CustomerFormProps) {
+export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }: CustomerFormProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -28,6 +31,24 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
         phone: '',
         dateOfBirth: '',
     });
+
+    // Reset form when editingCustomer changes
+    useEffect(() => {
+        if (editingCustomer) {
+            setFormData({
+                name: editingCustomer.name,
+                phone: editingCustomer.phone,
+                dateOfBirth: editingCustomer.dateOfBirth || '',
+            });
+            setOpen(true);
+        } else {
+            setFormData({
+                name: '',
+                phone: '',
+                dateOfBirth: '',
+            });
+        }
+    }, [editingCustomer]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,15 +64,26 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
             }
             setPhoneError(null);
 
-            // Check for duplicate customer
-            const isDuplicate = await checkDuplicateCustomer(formData.name, formData.phone);
-            if (isDuplicate) {
-                alert('A customer with this name or phone number already exists. Please use different details.');
-                setLoading(false);
-                return;
+            // Check for duplicate customer (only for new customers)
+            if (!editingCustomer) {
+                const isDuplicate = await checkDuplicateCustomer(formData.name, formData.phone);
+                if (isDuplicate) {
+                    alert('A customer with this name or phone number already exists. Please use different details.');
+                    setLoading(false);
+                    return;
+                }
             }
 
-            await addCustomer(formData);
+            if (editingCustomer) {
+                // Update existing customer
+                await updateCustomer(editingCustomer.id, formData);
+                // Reset editing state
+                setEditingCustomer?.(null);
+            } else {
+                // Create new customer
+                await addCustomer(formData);
+            }
+
             setOpen(false);
             setFormData({ name: '', phone: '', dateOfBirth: '' });
             setPhoneError(null);
@@ -77,16 +109,24 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
     }, [phoneError]);
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className="bg-orange-500 hover:bg-orange-600">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add Customer
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+            setOpen(isOpen);
+            if (!isOpen && editingCustomer) {
+                // Reset editingCustomer when dialog closes
+                setEditingCustomer?.(null);
+            }
+        }}>
+            {!editingCustomer && (
+                <DialogTrigger asChild>
+                    <Button className="bg-orange-500 hover:bg-orange-600">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Add Customer
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add New Customer</DialogTitle>
+                    <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
@@ -133,7 +173,7 @@ export function CustomerForm({ onSuccess }: CustomerFormProps) {
                         className="w-full bg-orange-500 hover:bg-orange-600"
                         disabled={loading}
                     >
-                        {loading ? 'Saving...' : 'Add Customer'}
+                        {loading ? 'Saving...' : (editingCustomer ? 'Update Customer' : 'Add Customer')}
                     </Button>
                 </form>
             </DialogContent>

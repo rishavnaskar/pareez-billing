@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CustomerList } from '@/components/CustomerList';
 import { BillForm } from '@/components/BillForm';
 import { BillHistory } from '@/components/BillHistory';
+import { NewBillFAB } from '@/components/NewBillFAB';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Users, FileText, Receipt, LogOut } from 'lucide-react';
@@ -15,6 +16,13 @@ type Tab = 'billing' | 'customers' | 'history';
 function AuthenticatedContent() {
   const [activeTab, setActiveTab] = useState<Tab>('billing');
   const { logout } = useAuth();
+
+  const handleNewBill = () => {
+    // Navigate to billing tab and reset form
+    setActiveTab('billing');
+    // Trigger form reset by forcing a re-render
+    window.dispatchEvent(new CustomEvent('resetBillForm'));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
@@ -29,11 +37,16 @@ function AuthenticatedContent() {
               <Button
                 variant={activeTab === 'billing' ? 'default' : 'ghost'}
                 onClick={() => setActiveTab('billing')}
-                className={`flex-1 sm:flex-none text-xs sm:text-sm ${activeTab === 'billing' ? 'bg-orange-500 hover:bg-orange-600' : 'text-white hover:bg-gray-800'}`}
+                className={`flex-1 sm:flex-none text-xs sm:text-sm font-semibold ${activeTab === 'billing'
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg transform hover:scale-105 transition-all duration-200 border-2 border-orange-400'
+                  : 'text-white hover:bg-gray-800 hover:shadow-md transform hover:scale-105 transition-all duration-200'}`}
               >
-                <FileText className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                <FileText className={`mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 ${activeTab === 'billing' ? 'animate-pulse' : ''}`} />
                 <span className="hidden sm:inline">New Bill</span>
                 <span className="sm:hidden">Bill</span>
+                {activeTab === 'billing' && (
+                  <span className="ml-1 sm:ml-2 w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                )}
               </Button>
               <Button
                 variant={activeTab === 'customers' ? 'default' : 'ghost'}
@@ -78,6 +91,9 @@ function AuthenticatedContent() {
           &copy; {new Date().getFullYear()} Pareez Salon
         </div>
       </footer>
+
+      {/* Floating Action Button */}
+      <NewBillFAB onNewBill={handleNewBill} isActive={activeTab === 'billing'} />
     </div>
   );
 }

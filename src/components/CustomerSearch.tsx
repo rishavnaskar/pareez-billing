@@ -20,6 +20,7 @@ import {
 import { Customer } from '@/lib/types';
 import { getCustomers } from '@/lib/firestore';
 import { maskPhoneNumber } from '@/lib/phone-mask';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CustomerSearchProps {
     onSelect: (customer: Customer | null) => void;
@@ -28,6 +29,7 @@ interface CustomerSearchProps {
 }
 
 export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: CustomerSearchProps) {
+    const { user } = useAuth();
     const [open, setOpen] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                 >
                     {selectedCustomer ? (
                         <span>
-                            {selectedCustomer.name} - {maskPhoneNumber(selectedCustomer.phone)}
+                            {selectedCustomer.name} - {user?.role === 'admin' ? selectedCustomer.phone : maskPhoneNumber(selectedCustomer.phone)}
                         </span>
                     ) : (
                         <span className="text-muted-foreground">
@@ -114,7 +116,7 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                                     <div className="flex flex-col">
                                         <span className="font-medium">{customer.name}</span>
                                         <span className="text-sm text-muted-foreground">
-                                            {maskPhoneNumber(customer.phone)}
+                                            {user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone)}
                                         </span>
                                     </div>
                                 </CommandItem>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { maskPhoneNumber } from '@/lib/phone-mask';
@@ -16,7 +16,7 @@ import { getAllBills } from '@/lib/firestore';
 import { getBranches } from '@/lib/branches';
 import { Bill, Branch } from '@/lib/types';
 import { BillPreview } from './BillPreview';
-import { Receipt } from 'lucide-react';
+import { Receipt, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -66,35 +66,51 @@ export function BillHistory() {
         return branchFilter && dateFilter;
     });
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch branches for admin users
-                if (user?.role === 'admin') {
-                    const branchesData = await getBranches();
-                    setBranches(branchesData);
-                }
-
-                // Fetch all bills (we'll filter client-side)
-                const data = await getAllBills();
-                setAllBills(data);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
+    const fetchData = useCallback(async () => {
+        try {
+            // Fetch branches for admin users
+            if (user?.role === 'admin') {
+                const branchesData = await getBranches();
+                setBranches(branchesData);
             }
-        };
-        fetchData();
+
+            // Fetch all bills (we'll filter client-side)
+            const data = await getAllBills();
+            setAllBills(data);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
+        }
     }, [user]);
+
+    useEffect(() => {
+        fetchData();
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <Card>
             <CardHeader className="pb-3 sm:pb-6">
                 <div className="flex flex-col gap-4">
-                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                        <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
-                        Recent Bills
-                    </CardTitle>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                            <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
+                            Recent Bills
+                        </CardTitle>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setLoading(true);
+                                fetchData();
+                            }}
+                            disabled={loading}
+                            className="flex items-center gap-2"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">Refresh</span>
+                        </Button>
+                    </div>
 
                     {/* Filters */}
                     <div className="border-l-2 border-gray-200 pl-4">
@@ -204,7 +220,7 @@ export function BillHistory() {
                                                     <div>
                                                         <div className="font-medium text-xs sm:text-sm">{bill.customerName}</div>
                                                         <div className="text-xs text-gray-500">
-                                                            {maskPhoneNumber(bill.customerPhone)}
+                                                            {user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone)}
                                                         </div>
                                                     </div>
                                                 </TableCell>
