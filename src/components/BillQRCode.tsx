@@ -6,14 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { QrCode, Download, Share2 } from 'lucide-react';
 import Image from 'next/image';
+import { Bill } from '@/lib/types';
+import { shareBillViaWhatsApp } from '@/lib/whatsapp';
 
 interface BillQRCodeProps {
     billId: string;
     billNumber: string;
+    bill?: Bill;
     autoOpen?: boolean;
 }
 
-export function BillQRCode({ billId, billNumber, autoOpen = false }: BillQRCodeProps) {
+export function BillQRCode({ billId, billNumber, bill, autoOpen = false }: BillQRCodeProps) {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(autoOpen);
@@ -67,9 +70,15 @@ export function BillQRCode({ billId, billNumber, autoOpen = false }: BillQRCodeP
     };
 
     const shareBill = () => {
-        const message = `View bill ${billNumber}: ${billUrl}`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+        if (bill) {
+            // Use actual bill data if available
+            shareBillViaWhatsApp(bill, billId);
+        } else {
+            // Fallback to simple message if no bill data
+            const message = `View bill ${billNumber}: ${billUrl}`;
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
     };
 
     return (

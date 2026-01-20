@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { Download, Share2 } from 'lucide-react';
 import { generateBillPDF } from '@/lib/pdf-generator';
 import { maskPhoneNumber } from '@/lib/phone-mask';
+import { shareBillViaWhatsApp } from '@/lib/whatsapp';
 
 interface BillPreviewProps {
     bill: Bill;
@@ -69,21 +70,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
     };
 
     const handleShareWhatsApp = () => {
-        // Generate shareable link for the bill
-        const billUrl = `${window.location.origin}/bill/${bill.id}`;
-
-        const message = encodeURIComponent(
-            `Bill from Pareez Unisex Professional Salon\nBill No: ${bill.billNumber}\nCustomer: ${bill.customerName}\nTotal Amount: ₹${bill.totalAmount.toFixed(2)}\n\nView your bill online: ${billUrl}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon`
-        );
-
-        // Direct WhatsApp to customer's phone number
-        if (bill.customerPhone) {
-            const cleanPhone = bill.customerPhone.replace(/[^0-9]/g, '');
-            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
-        } else {
-            // Fallback to general WhatsApp if no phone number
-            window.open(`https://wa.me/?text=${message}`, '_blank');
-        }
+        shareBillViaWhatsApp(bill, bill.id);
     };
 
     return (
@@ -113,7 +100,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             <span className="hidden sm:inline">Share to WhatsApp</span>
                             <span className="sm:hidden">Share</span>
                         </Button>
-                        <BillQRCode billId={bill.id} billNumber={bill.billNumber} />
+                        <BillQRCode billId={bill.id} billNumber={bill.billNumber} bill={bill} />
                     </div>
 
                     {/* Bill Preview */}

@@ -16,6 +16,7 @@ import { addBill, updateBill, generateBillNumber, getCustomers } from '@/lib/fir
 import { getBranchById } from '@/lib/branches';
 import { Customer, ServiceItem, Bill, Branch } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { shareBillViaWhatsApp } from '@/lib/whatsapp';
 import { Plus, Trash2, FileText, Share2, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { generateBillPDF } from '@/lib/pdf-generator';
@@ -254,21 +255,7 @@ export function BillForm() {
             return;
         }
 
-        // Generate shareable link for the bill
-        const billUrl = `${window.location.origin}/bill/${savedBill.id}`;
-
-        const message = encodeURIComponent(
-            `Bill from Pareez Unisex Professional Salon\nBill No: ${savedBill.billNumber}\nCustomer: ${savedBill.customerName}\nTotal Amount: ₹${savedBill.totalAmount.toFixed(2)}\n\nView your bill online: ${billUrl}\n\nThank you for visiting Pareez!\n\nFollow us on social media:\nInstagram: @pareezsalon\nFacebook: PAREEZ.salon\nGoogle Review: g.page/r/CQL8v4uFTDjKEBI/review`
-        );
-
-        // Direct WhatsApp to customer's phone number
-        if (savedBill.customerPhone) {
-            const cleanPhone = savedBill.customerPhone.replace(/[^0-9]/g, '');
-            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
-        } else {
-            // Fallback to general WhatsApp if no phone number
-            window.open(`https://wa.me/?text=${message}`, '_blank');
-        }
+        shareBillViaWhatsApp(savedBill, savedBill.id);
     };
 
     const resetForm = () => {
@@ -514,7 +501,7 @@ export function BillForm() {
                                         <span className="hidden sm:inline">Share to WhatsApp</span>
                                         <span className="sm:hidden">Share</span>
                                     </Button>
-                                    <BillQRCode billId={savedBill.id} billNumber={savedBill.billNumber} autoOpen={showQRCode} />
+                                    <BillQRCode billId={savedBill.id} billNumber={savedBill.billNumber} bill={savedBill} autoOpen={showQRCode} />
                                     <Button variant="outline" onClick={resetForm} className="text-xs sm:text-sm">
                                         New Bill
                                     </Button>
