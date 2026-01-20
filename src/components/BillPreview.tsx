@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Separator } from '@/components/ui/separator';
 import { Bill } from '@/lib/types';
 import { BillLogo } from './BillLogo';
+import { BillQRCode } from './BillQRCode';
 import { format } from 'date-fns';
 import { Download, Share2 } from 'lucide-react';
 import { generateBillPDF } from '@/lib/pdf-generator';
@@ -112,6 +113,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             <span className="hidden sm:inline">Share to WhatsApp</span>
                             <span className="sm:hidden">Share</span>
                         </Button>
+                        <BillQRCode billId={bill.id} billNumber={bill.billNumber} />
                     </div>
 
                     {/* Bill Preview */}

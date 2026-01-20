@@ -11,6 +11,7 @@ import { CustomerSearch } from './CustomerSearch';
 import { CustomerForm } from './CustomerForm';
 import { BillLogo } from './BillLogo';
 import { BranchSelector } from './BranchSelector';
+import { BillQRCode } from './BillQRCode';
 import { addBill, updateBill, generateBillNumber, getCustomers } from '@/lib/firestore';
 import { getBranchById } from '@/lib/branches';
 import { Customer, ServiceItem, Bill, Branch } from '@/lib/types';
@@ -37,6 +38,7 @@ export function BillForm() {
     const [savedBill, setSavedBill] = useState<Bill | null>(null);
     const [customerSearchKey, setCustomerSearchKey] = useState(0);
     const [hasChanges, setHasChanges] = useState(false);
+    const [showQRCode, setShowQRCode] = useState(false);
     const billRef = useRef<HTMLDivElement>(null);
 
     // Optimized auto-selection callback
@@ -175,12 +177,14 @@ export function BillForm() {
             } else {
                 // Create new bill
                 const billId = await addBill(selectedCustomer.id, billData);
-                setSavedBill({
+                const newBill = {
                     ...billData,
                     id: billId,
                     createdAt: new Date(),
-                });
+                };
+                setSavedBill(newBill);
                 setHasChanges(false);
+                setShowQRCode(true);
                 alert('Bill saved successfully! Shareable link has been generated.');
             }
         } catch (error) {
@@ -272,6 +276,7 @@ export function BillForm() {
         setServices([{ id: '1', serviceName: '', price: 0, discountAmount: 0, staffName: '' }]);
         setDiscountAmount(0);
         setSavedBill(null);
+        setShowQRCode(false);
         if (selectedBranchId) {
             generateBillNumber(selectedBranchId).then(setBillNumber);
         }
@@ -509,6 +514,7 @@ export function BillForm() {
                                         <span className="hidden sm:inline">Share to WhatsApp</span>
                                         <span className="sm:hidden">Share</span>
                                     </Button>
+                                    <BillQRCode billId={savedBill.id} billNumber={savedBill.billNumber} autoOpen={showQRCode} />
                                     <Button variant="outline" onClick={resetForm} className="text-xs sm:text-sm">
                                         New Bill
                                     </Button>
