@@ -80,7 +80,8 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                 >
                     {selectedCustomer ? (
                         <span>
-                            {selectedCustomer.name} - {user?.role === 'admin' ? selectedCustomer.phone : maskPhoneNumber(selectedCustomer.phone)}
+                            {selectedCustomer.name}
+                            {selectedCustomer.phone ? ` - ${user?.role === 'admin' ? selectedCustomer.phone : maskPhoneNumber(selectedCustomer.phone)}` : ''}
                         </span>
                     ) : (
                         <span className="text-muted-foreground">
@@ -102,7 +103,7 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                             {customers.map((customer) => (
                                 <CommandItem
                                     key={customer.id}
-                                    value={`${customer.name} ${customer.phone}`}
+                                    value={`${customer.name} ${customer.phone || ''}`}
                                     onSelect={() => handleCustomerSelect(customer)}
                                 >
                                     <Check
@@ -116,7 +117,9 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                                     <div className="flex flex-col">
                                         <span className="font-medium">{customer.name}</span>
                                         <span className="text-sm text-muted-foreground">
-                                            {user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone)}
+                                            {customer.phone
+                                                ? (user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone))
+                                                : 'No phone'}
                                         </span>
                                     </div>
                                 </CommandItem>

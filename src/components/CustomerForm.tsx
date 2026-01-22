@@ -13,11 +13,11 @@ import {
 } from '@/components/ui/dialog';
 import { addCustomer, updateCustomer, checkDuplicateCustomer } from '@/lib/firestore';
 import { getPhoneValidationError } from '@/lib/validation';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, X } from 'lucide-react';
 import { Customer } from '@/lib/types';
 
 interface CustomerFormProps {
-    onSuccess: (customer: { name: string; phone: string; dateOfBirth?: string }) => void;
+    onSuccess: (customer: { name: string; phone?: string; dateOfBirth?: string }) => void;
     editingCustomer?: Customer | null;
     setEditingCustomer?: (customer: Customer | null) => void;
 }
@@ -37,7 +37,7 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }:
         if (editingCustomer) {
             setFormData({
                 name: editingCustomer.name,
-                phone: editingCustomer.phone,
+                phone: editingCustomer.phone || '',
                 dateOfBirth: editingCustomer.dateOfBirth || '',
             });
             setOpen(true);
@@ -55,7 +55,7 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }:
         setLoading(true);
 
         try {
-            // Validate phone number
+            // Validate phone number (optional)
             const phoneValidationError = getPhoneValidationError(formData.phone);
             if (phoneValidationError) {
                 setPhoneError(phoneValidationError);
@@ -64,11 +64,11 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }:
             }
             setPhoneError(null);
 
-            // Check for duplicate customer (only for new customers)
-            if (!editingCustomer) {
+            // Check for duplicate customer by phone only when provided (new customers only)
+            if (!editingCustomer && formData.phone.trim()) {
                 const isDuplicate = await checkDuplicateCustomer(formData.name, formData.phone);
                 if (isDuplicate) {
-                    alert('A customer with this name or phone number already exists. Please use different details.');
+                    alert('A customer with this phone number already exists. Please use a different phone number.');
                     setLoading(false);
                     return;
                 }
@@ -142,15 +142,14 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }:
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
+                        <Label htmlFor="phone">Phone Number (Optional)</Label>
                         <Input
                             id="phone"
                             type="tel"
                             value={formData.phone}
                             onChange={handlePhoneChange}
-                            placeholder="Phone number"
+                            placeholder="Phone number (optional)"
                             maxLength={10}
-                            required
                             className={phoneError ? 'border-red-500' : ''}
                         />
                         {phoneError && (
@@ -159,14 +158,28 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }:
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="dob">Date of Birth (Optional)</Label>
-                        <Input
-                            id="dob"
-                            type="date"
-                            value={formData.dateOfBirth}
-                            onChange={(e) =>
-                                setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))
-                            }
-                        />
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="dob"
+                                type="date"
+                                value={formData.dateOfBirth}
+                                onChange={(e) =>
+                                    setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))
+                                }
+                            />
+                            {formData.dateOfBirth && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setFormData(prev => ({ ...prev, dateOfBirth: '' }))}
+                                    aria-label="Clear date of birth"
+                                    className="shrink-0"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
                     <Button
                         type="submit"

@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Download } from 'lucide-react';
 import { generateBillPDF } from '@/lib/pdf-generator';
 import { maskPhoneNumber } from '@/lib/phone-mask';
+import { formatINR } from '@/lib/currency';
 import Image from 'next/image';
 
 export default function BillPreviewPage() {
@@ -144,7 +145,7 @@ export default function BillPreviewPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-600">Phone</p>
-                                    <p className="font-medium text-gray-900">{maskPhoneNumber(bill.customerPhone)}</p>
+                                    <p className="font-medium text-gray-900">{bill.customerPhone ? maskPhoneNumber(bill.customerPhone) : 'N/A'}</p>
                                 </div>
                             </div>
                         </div>
@@ -171,12 +172,12 @@ export default function BillPreviewPage() {
                                         <div key={index} className="bg-gray-50 p-3 rounded-lg">
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className="font-medium text-gray-900">{service.serviceName}</span>
-                                                <span className="font-semibold text-gray-900">₹{serviceTotal.toFixed(2)}</span>
+                                                <span className="font-semibold text-gray-900">{formatINR(serviceTotal)}</span>
                                             </div>
                                             <div className="flex justify-between text-xs text-gray-600">
-                                                <span>Price: ₹{service.price.toFixed(2)}</span>
+                                                <span>Price: {formatINR(service.price)}</span>
                                                 {service.discountAmount > 0 && (
-                                                    <span className="text-green-600">Discount: -₹{service.discountAmount.toFixed(2)}</span>
+                                                    <span className="text-green-600">Discount: {formatINR(-service.discountAmount)}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -201,11 +202,11 @@ export default function BillPreviewPage() {
                                             return (
                                                 <tr key={index} className="border-b border-gray-100">
                                                     <td className="py-3 text-gray-900">{service.serviceName}</td>
-                                                    <td className="py-3 text-right text-gray-900">₹{service.price.toFixed(2)}</td>
+                                                    <td className="py-3 text-right text-gray-900">{formatINR(service.price)}</td>
                                                     <td className="py-3 text-right text-green-600">
-                                                        {service.discountAmount > 0 ? `-₹${service.discountAmount.toFixed(2)}` : '-'}
+                                                        {service.discountAmount > 0 ? formatINR(-service.discountAmount) : '-'}
                                                     </td>
-                                                    <td className="py-3 text-right text-gray-900 font-medium">₹{serviceTotal.toFixed(2)}</td>
+                                                    <td className="py-3 text-right text-gray-900 font-medium">{formatINR(serviceTotal)}</td>
                                                 </tr>
                                             );
                                         })}
@@ -220,21 +221,21 @@ export default function BillPreviewPage() {
                             <div className="space-y-2">
                                 <div className="flex justify-between text-gray-700">
                                     <span>Subtotal:</span>
-                                    <span className="font-medium">₹{bill.subtotal.toFixed(2)}</span>
+                                    <span className="font-medium">{formatINR(bill.subtotal)}</span>
                                 </div>
                                 {(() => {
                                     const serviceDiscounts = bill.services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
                                     return serviceDiscounts > 0 && (
                                         <div className="flex justify-between text-green-600">
                                             <span>Service Discounts:</span>
-                                            <span className="font-medium">-₹{serviceDiscounts.toFixed(2)}</span>
+                                            <span className="font-medium">{formatINR(-serviceDiscounts)}</span>
                                         </div>
                                     );
                                 })()}
                                 {bill.discountAmount > 0 && (
                                     <div className="flex justify-between text-green-600">
                                         <span>Additional Discount:</span>
-                                        <span className="font-medium">-₹{bill.discountAmount.toFixed(2)}</span>
+                                        <span className="font-medium">{formatINR(-bill.discountAmount)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between items-center">
@@ -245,7 +246,7 @@ export default function BillPreviewPage() {
                                 </div>
                                 <div className="flex justify-between items-center pt-3 border-t-2 border-orange-200">
                                     <span className="text-lg font-bold text-gray-900">Total Amount</span>
-                                    <span className="text-2xl font-bold text-orange-600">₹{bill.totalAmount.toFixed(2)}</span>
+                                    <span className="text-2xl font-bold text-orange-600">{formatINR(bill.totalAmount)}</span>
                                 </div>
                             </div>
                         </div>

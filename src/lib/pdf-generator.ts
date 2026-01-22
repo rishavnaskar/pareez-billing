@@ -1,12 +1,13 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ServiceItem } from './types';
+import { formatINRNoSymbol } from './currency';
 import { maskPhoneNumber } from './phone-mask';
 
 export interface PDFGenerationOptions {
   billNumber: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone?: string;
   services: ServiceItem[];
   discountAmount: number;
   totalAmount: number;
@@ -85,7 +86,7 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   pdf.setFont('helvetica', 'normal');
   pdf.text(`Name: ${customerName}`, margin + 5, yPos);
   yPos += 6;
-  pdf.text(`Phone: ${maskPhoneNumber(customerPhone)}`, margin + 5, yPos);
+  pdf.text(`Phone: ${customerPhone ? maskPhoneNumber(customerPhone) : 'N/A'}`, margin + 5, yPos);
   yPos += 15;
 
   // Services Table with better styling
@@ -113,7 +114,7 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   // Table rows
   pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'normal');
-  
+
   services.forEach((service, index) => {
     if (service.serviceName) {
       // Alternate row colors
@@ -121,17 +122,17 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
         pdf.setFillColor(248, 249, 250);
         pdf.rect(margin, yPos - 4, contentWidth, 8, 'F');
       }
-      
+
       pdf.text(service.serviceName, margin + 4, yPos);
       const price = service.price || 0;
       const discount = service.discountAmount || 0;
       const total = price - discount;
-      
-      pdf.text(price.toFixed(2), margin + contentWidth * 0.4 + 4, yPos);
+
+      pdf.text(formatINRNoSymbol(price), margin + contentWidth * 0.4 + 4, yPos);
       pdf.setTextColor(0, 128, 0);
-      pdf.text(discount > 0 ? `-${discount.toFixed(2)}` : '-', margin + contentWidth * 0.6 + 4, yPos);
+      pdf.text(discount > 0 ? formatINRNoSymbol(-discount) : '-', margin + contentWidth * 0.6 + 4, yPos);
       pdf.setTextColor(0, 0, 0);
-      pdf.text(total.toFixed(2), pageWidth - margin - 4, yPos, { align: 'right' });
+      pdf.text(formatINRNoSymbol(total), pageWidth - margin - 4, yPos, { align: 'right' });
       yPos += 8;
     }
   });
@@ -152,21 +153,21 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   pdf.setFont('helvetica', 'normal');
   pdf.text('Subtotal:', margin + 20, yPos);
   const calculatedSubtotal = services.reduce((sum, service) => sum + (service.price || 0), 0);
-  pdf.text(calculatedSubtotal.toFixed(2), pageWidth - margin, yPos, { align: 'right' });
+  pdf.text(formatINRNoSymbol(calculatedSubtotal), pageWidth - margin, yPos, { align: 'right' });
   yPos += 6;
 
   const serviceDiscounts = services.reduce((sum, service) => sum + (service.discountAmount || 0), 0);
   if (serviceDiscounts > 0) {
     pdf.setTextColor(0, 128, 0);
     pdf.text('Service Discounts:', margin + 20, yPos);
-    pdf.text(`-${serviceDiscounts.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
+    pdf.text(formatINRNoSymbol(-serviceDiscounts), pageWidth - margin, yPos, { align: 'right' });
     yPos += 6;
   }
 
   if (discountAmount > 0) {
     pdf.setTextColor(0, 128, 0);
     pdf.text('Additional Discount:', margin + 20, yPos);
-    pdf.text(`-${discountAmount.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
+    pdf.text(formatINRNoSymbol(-discountAmount), pageWidth - margin, yPos, { align: 'right' });
     yPos += 6;
   }
   pdf.setTextColor(0, 0, 0);
@@ -196,12 +197,12 @@ export async function generateBillPDF(options: PDFGenerationOptions): Promise<Bl
   pdf.setFontSize(14);
   pdf.setTextColor(255, 140, 0);
   pdf.text('TOTAL AMOUNT', margin + 20, yPos);
-  pdf.text(totalAmount.toFixed(2), pageWidth - margin, yPos, { align: 'right' });
+  pdf.text(formatINRNoSymbol(totalAmount), pageWidth - margin, yPos, { align: 'right' });
   yPos += 15;
 
   // Footer with better styling
   yPos = pdf.internal.pageSize.getHeight() - 40;
-  
+
   pdf.setDrawColor(200, 200, 200);
   pdf.line(margin, yPos, pageWidth - margin, yPos);
   yPos += 10;

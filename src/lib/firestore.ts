@@ -22,10 +22,10 @@ export async function addCustomer(customer: Omit<Customer, 'id' | 'createdAt'>):
     ...customer,
     createdAt: Timestamp.now(),
   });
-  
+
   // Invalidate customers cache
   cache.clear();
-  
+
   return docRef.id;
 }
 
@@ -47,30 +47,22 @@ export async function getCustomers(): Promise<Customer[]> {
 
   // Cache for 5 minutes
   cache.set(CACHE_KEYS.CUSTOMERS, customers, 5 * 60 * 1000);
-  
+
   return customers;
 }
 
-export async function checkDuplicateCustomer(name: string, phone: string): Promise<boolean> {
-  // Use server-side queries instead of fetching all customers
-  const nameQuery = query(
-    collection(db, 'customers'),
-    where('name', '==', name.trim()),
-    limit(1)
-  );
-  
+export async function checkDuplicateCustomer(name: string, phone?: string): Promise<boolean> {
+  // If no phone provided, skip duplicate check per requirement
+  if (!phone?.trim()) return false;
+
   const phoneQuery = query(
     collection(db, 'customers'),
-    where('phone', '==', phone),
+    where('phone', '==', phone.trim()),
     limit(1)
   );
-  
-  const [nameSnapshot, phoneSnapshot] = await Promise.all([
-    getDocs(nameQuery),
-    getDocs(phoneQuery)
-  ]);
-  
-  return !nameSnapshot.empty || !phoneSnapshot.empty;
+
+  const phoneSnapshot = await getDocs(phoneQuery);
+  return !phoneSnapshot.empty;
 }
 
 export async function searchCustomers(searchTerm: string): Promise<Customer[]> {
@@ -79,14 +71,14 @@ export async function searchCustomers(searchTerm: string): Promise<Customer[]> {
   if (!searchTerm || searchTerm.trim().length < 2) {
     return [];
   }
-  
+
   const customers = await getCustomers();
   const term = searchTerm.toLowerCase().trim();
-  
+
   return customers.filter(
     (c) =>
       c.name.toLowerCase().includes(term) ||
-      c.phone.includes(term)
+      (c.phone ? c.phone.includes(term) : false)
   );
 }
 
@@ -110,10 +102,10 @@ export async function addBill(
     customerId,
     createdAt: Timestamp.now(),
   });
-  
+
   // Invalidate bills cache
   cache.clear();
-  
+
   return docRef.id;
 }
 
@@ -123,22 +115,22 @@ export async function updateBill(
 ): Promise<void> {
   const docRef = doc(db, 'bills', billId);
   await updateDoc(docRef, billData);
-  
+
   // Invalidate bills cache
   cache.clear();
 }
 
 export async function getBillsForCustomer(customerId: string, branchId?: string): Promise<Bill[]> {
   let q = query(collection(db, 'bills'), where('customerId', '==', customerId));
-  
+
   if (branchId) {
     q = query(q, where('branchId', '==', branchId));
   }
-  
+
   q = query(q, orderBy('createdAt', 'desc'));
-  
+
   const querySnapshot = await getDocs(q);
-  
+
   return querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
@@ -148,7 +140,7 @@ export async function getBillsForCustomer(customerId: string, branchId?: string)
 
 export async function getAllBills(branchId?: string): Promise<Bill[]> {
   const cacheKey = CACHE_KEYS.BILLS(branchId);
-  
+
   // Check cache first (shorter TTL for bills as they change more frequently)
   const cached = cache.get<Bill[]>(cacheKey);
   if (cached) {
@@ -156,13 +148,13 @@ export async function getAllBills(branchId?: string): Promise<Bill[]> {
   }
 
   let q = query(collection(db, 'bills'));
-  
+
   if (branchId) {
     q = query(q, where('branchId', '==', branchId));
   }
-  
+
   q = query(q, orderBy('createdAt', 'desc'));
-  
+
   const querySnapshot = await getDocs(q);
   const bills = querySnapshot.docs.map((doc) => ({
     id: doc.id,
@@ -172,14 +164,14 @@ export async function getAllBills(branchId?: string): Promise<Bill[]> {
 
   // Cache for 2 minutes (bills change more frequently)
   cache.set(cacheKey, bills, 2 * 60 * 1000);
-  
+
   return bills;
 }
 
 export async function getBillById(billId: string): Promise<Bill | null> {
   const docRef = doc(db, 'bills', billId);
   const docSnap = await getDoc(docRef);
-  
+
   if (docSnap.exists()) {
     return {
       id: docSnap.id,
@@ -187,7 +179,7 @@ export async function getBillById(billId: string): Promise<Bill | null> {
       createdAt: docSnap.data().createdAt?.toDate() || new Date(),
     } as Bill;
   }
-  
+
   return null;
 }
 
@@ -196,19 +188,19 @@ export async function generateBillNumber(branchId?: string): Promise<string> {
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  
+
   let q = query(
     collection(db, 'bills'),
     where('createdAt', '>=', Timestamp.fromDate(startOfDay)),
     where('createdAt', '<', Timestamp.fromDate(endOfDay))
   );
-  
+
   if (branchId) {
     q = query(q, where('branchId', '==', branchId));
   }
-  
+
   const querySnapshot = await getDocs(q);
   const todayBillCount = querySnapshot.size;
-  
+
   return `PRZ-${dateStr}-${String(todayBillCount + 1).padStart(3, '0')}`;
 }

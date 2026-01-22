@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -14,3 +14,15 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+// Optional: connect to Firestore emulator when env is set
+if (process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST) {
+  const [host, portStr] = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST.split(':');
+  const port = Number(portStr || 8080);
+  try {
+    connectFirestoreEmulator(db, host || 'localhost', port);
+    console.info(`Firestore emulator connected at ${host || 'localhost'}:${port}`);
+  } catch (err) {
+    console.warn('Failed to connect Firestore emulator:', err);
+  }
+}

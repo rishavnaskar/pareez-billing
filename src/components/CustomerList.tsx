@@ -47,7 +47,7 @@ export function CustomerList() {
     const filteredCustomers = customers.filter(
         (c) =>
             c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.phone.includes(searchTerm)
+            (c.phone ? c.phone.includes(searchTerm) : false)
     );
 
     const handleDeleteCustomer = async (customer: Customer) => {
@@ -123,7 +123,9 @@ export function CustomerList() {
                                         <TableRow key={customer.id}>
                                             <TableCell className="font-medium text-xs sm:text-sm min-w-[120px]">{customer.name}</TableCell>
                                             <TableCell className="text-xs sm:text-sm min-w-[150px]">
-                                                {user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone)}
+                                                {customer.phone
+                                                    ? (user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone))
+                                                    : '—'}
                                             </TableCell>
                                             <TableCell className="text-xs sm:text-sm min-w-[120px]">
                                                 {customer.dateOfBirth

@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { formatINR } from '@/lib/currency';
 
 export function BillHistory() {
     const { user } = useAuth();
@@ -46,11 +47,9 @@ export function BillHistory() {
     const filteredBills = allBills.filter(bill => {
         const billDate = new Date(bill.createdAt);
 
-        // Branch filtering
         const branchFilter = user?.role === 'user' ? bill.branchId === user.branchId :
             (user?.role === 'admin' && selectedBranchId !== 'all' ? bill.branchId === selectedBranchId : true);
 
-        // Date filtering
         let dateFilter = true;
         if (startDate) {
             const start = new Date(startDate);
@@ -65,6 +64,25 @@ export function BillHistory() {
 
         return branchFilter && dateFilter;
     });
+
+    const daySections = filteredBills.reduce<Record<string, { bills: Bill[]; totals: { overall: number; cash: number; card: number; upi: number } }>>((acc, bill) => {
+        const key = format(new Date(bill.createdAt), 'dd MMM yyyy');
+        if (!acc[key]) {
+            acc[key] = { bills: [], totals: { overall: 0, cash: 0, card: 0, upi: 0 } };
+        }
+        acc[key].bills.push(bill);
+        acc[key].totals.overall += bill.totalAmount;
+        acc[key].totals[bill.paymentMethod] += bill.totalAmount;
+        return acc;
+    }, {});
+
+    const daySectionsList = Object.entries(daySections)
+        .map(([day, data]) => ({ day, ...data }))
+        .sort((a, b) => {
+            const da = new Date(a.day);
+            const db = new Date(b.day);
+            return db.getTime() - da.getTime();
+        });
 
     const fetchData = useCallback(async () => {
         try {
@@ -193,77 +211,82 @@ export function BillHistory() {
                                 </Button>
                             </div>
                         ) : (
-                            <p>No bills yet. Create your first bill!</p>
+                            <span>No bills yet. Create your first bill!</span>
                         )}
                     </div>
+                ) : daySectionsList.length === 0 ? (
+                    <div className="py-8 text-center text-gray-500 text-sm">No bills match the filters.</div>
                 ) : (
-                    <div className="rounded-md border overflow-x-auto">
-                        <div className="min-w-full">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="text-xs sm:text-sm min-w-[100px]">Bill No.</TableHead>
-                                        <TableHead className="text-xs sm:text-sm min-w-[150px]">Customer</TableHead>
-                                        <TableHead className="text-xs sm:text-sm min-w-[180px]">Date</TableHead>
-                                        <TableHead className="text-xs sm:text-sm min-w-[200px]">Services</TableHead>
-                                        <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">Amount</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredBills.slice(0, 10).map((bill) => (
-                                        <BillPreview key={bill.id} bill={bill}>
-                                            <TableRow className="cursor-pointer hover:bg-gray-50">
-                                                <TableCell className="font-mono text-xs sm:text-sm min-w-[100px]">
-                                                    {bill.billNumber}
-                                                </TableCell>
-                                                <TableCell className="min-w-[150px]">
-                                                    <div>
-                                                        <div className="font-medium text-xs sm:text-sm">{bill.customerName}</div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone)}
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs sm:text-sm min-w-[180px]">
-                                                    {format(new Date(bill.createdAt), 'dd MMM yyyy, hh:mm a')}
-                                                </TableCell>
-                                                <TableCell className="min-w-[200px]">
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {bill.services.slice(0, 2).map((s, i) => (
-                                                            <Badge key={i} variant="secondary" className="text-xs">
-                                                                {s.serviceName}
-                                                            </Badge>
-                                                        ))}
-                                                        {bill.services.length > 2 && (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                +{bill.services.length - 2} more
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right font-medium text-xs sm:text-sm min-w-[100px]">
-                                                    ₹{bill.totalAmount.toFixed(2)}
-                                                    {(() => {
-                                                        const serviceDiscounts = bill.services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
-                                                        const hasServiceDiscounts = serviceDiscounts > 0;
-                                                        const hasAdditionalDiscount = bill.discountAmount > 0;
-
-                                                        return (hasServiceDiscounts || hasAdditionalDiscount) && (
-                                                            <div className="text-xs text-green-600">
-                                                                {hasServiceDiscounts && 'Service'}
-                                                                {hasServiceDiscounts && hasAdditionalDiscount && ' + '}
-                                                                {hasAdditionalDiscount && 'Additional'}
-                                                                {' Discount'}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </TableCell>
+                    <div className="space-y-6">
+                        {daySectionsList.map(({ day, bills, totals }) => (
+                            <div key={day} className="space-y-3">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-base font-semibold text-gray-900">{day}</div>
+                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-700">
+                                        <span className="font-medium">Total: {formatINR(totals.overall)}</span>
+                                        <span>Cash: {formatINR(totals.cash)}</span>
+                                        <span>Card: {formatINR(totals.card)}</span>
+                                        <span>UPI: {formatINR(totals.upi)}</span>
+                                    </div>
+                                </div>
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="text-xs sm:text-sm min-w-[100px]">Bill No</TableHead>
+                                                <TableHead className="text-xs sm:text-sm min-w-[150px]">Customer</TableHead>
+                                                <TableHead className="text-xs sm:text-sm min-w-[180px]">Time</TableHead>
+                                                <TableHead className="text-xs sm:text-sm min-w-[200px]">Services</TableHead>
+                                                <TableHead className="text-xs sm:text-sm min-w-[80px]">Total</TableHead>
                                             </TableRow>
-                                        </BillPreview>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {bills
+                                                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                                .map((bill) => (
+                                                    <BillPreview key={bill.id} bill={bill}>
+                                                        <TableRow className="cursor-pointer hover:bg-gray-50">
+                                                            <TableCell className="font-mono text-xs sm:text-sm min-w-[100px]">
+                                                                {bill.billNumber}
+                                                            </TableCell>
+                                                            <TableCell className="min-w-[150px]">
+                                                                <div>
+                                                                    <div className="font-medium text-xs sm:text-sm">{bill.customerName}</div>
+                                                                    <div className="text-xs text-gray-500">
+                                                                        {bill.customerPhone
+                                                                            ? (user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone))
+                                                                            : 'N/A'}
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-xs sm:text-sm min-w-[180px]">
+                                                                {format(new Date(bill.createdAt), 'hh:mm a')}
+                                                            </TableCell>
+                                                            <TableCell className="min-w-[200px]">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {bill.services.slice(0, 2).map((s, i) => (
+                                                                        <Badge key={i} variant="secondary" className="text-xs">
+                                                                            {s.serviceName}
+                                                                        </Badge>
+                                                                    ))}
+                                                                    {bill.services.length > 2 && (
+                                                                        <Badge variant="outline" className="text-[10px]">
+                                                                            +{bill.services.length - 2} more
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900">
+                                                                {formatINR(bill.totalAmount)}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    </BillPreview>
+                                                ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </CardContent>

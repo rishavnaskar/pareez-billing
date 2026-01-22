@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from '@/components/ui/dialog';
 import { CustomerSearch } from './CustomerSearch';
 import { CustomerForm } from './CustomerForm';
 import { BillLogo } from './BillLogo';
@@ -17,8 +25,9 @@ import { getBranchById } from '@/lib/branches';
 import { Customer, ServiceItem, Bill, Branch } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { shareBillViaWhatsApp } from '@/lib/whatsapp';
-import { Plus, Trash2, FileText, Share2, Printer } from 'lucide-react';
+import { Plus, Trash2, FileText, Share2, Printer, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatINR } from '@/lib/currency';
 import { generateBillPDF } from '@/lib/pdf-generator';
 import Image from 'next/image';
 import { maskPhoneNumber } from '@/lib/phone-mask';
@@ -30,9 +39,15 @@ export function BillForm() {
     const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
     const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
     const [billNumber, setBillNumber] = useState('');
-    const [services, setServices] = useState<ServiceItem[]>([
-        { id: '1', serviceName: '', price: 0, discountAmount: 0, staffName: '' },
-    ]);
+    const [services, setServices] = useState<ServiceItem[]>([]);
+    const [serviceModalOpen, setServiceModalOpen] = useState(false);
+    const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+    const [serviceForm, setServiceForm] = useState({
+        serviceName: '',
+        price: '',
+        discountAmount: '',
+        staffName: '',
+    });
     const [discountAmount, setDiscountAmount] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash');
     const [loading, setLoading] = useState(false);
@@ -43,17 +58,22 @@ export function BillForm() {
     const billRef = useRef<HTMLDivElement>(null);
 
     // Optimized auto-selection callback
-    const handleCustomerCreated = useCallback(async (newCustomer: { name: string; phone: string; dateOfBirth?: string }) => {
+    const handleCustomerCreated = useCallback(async (newCustomer: { name: string; phone?: string; dateOfBirth?: string }) => {
         setCustomerSearchKey(prev => prev + 1);
 
         // Auto-select the newly created customer after a short delay
         const timeoutId = setTimeout(async () => {
             try {
                 const customers = await getCustomers();
-                const createdCustomer = customers.find(c =>
+                let createdCustomer = customers.find(c =>
                     c.name === newCustomer.name &&
-                    c.phone === newCustomer.phone
+                    (!!newCustomer.phone ? c.phone === newCustomer.phone : true)
                 );
+
+                if (!createdCustomer) {
+                    // Fallback: pick most recently created by name
+                    createdCustomer = customers.find(c => c.name === newCustomer.name);
+                }
 
                 if (createdCustomer) {
                     setSelectedCustomer(createdCustomer);
@@ -87,45 +107,108 @@ export function BillForm() {
 
     // Detect changes when bill is saved
     useEffect(() => {
-        if (savedBill) {
-            // Check if current form data differs from saved bill
-            const currentSubtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
-            const currentTotal = currentSubtotal - discountAmount;
+        if (!savedBill) return;
 
-            const hasFormChanged =
-                services.length !== savedBill.services.length ||
-                services.some((service, index) => {
-                    const savedService = savedBill.services[index];
-                    return !savedService ||
-                        service.serviceName !== savedService.serviceName ||
-                        service.price !== savedService.price ||
-                        service.staffName !== savedService.staffName;
-                }) ||
-                discountAmount !== savedBill.discountAmount ||
-                paymentMethod !== savedBill.paymentMethod ||
-                currentTotal !== savedBill.totalAmount;
+        const hasBlankService = services.some((s) => !s.serviceName && !s.price && !s.discountAmount && !s.staffName);
+        const currentSubtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
+        const currentTotal = currentSubtotal - discountAmount;
 
-            setHasChanges(hasFormChanged);
-        }
+        const hasFormChanged =
+            services.length !== savedBill.services.length ||
+            services.some((service, index) => {
+                const savedService = savedBill.services[index];
+                return !savedService ||
+                    service.serviceName !== savedService.serviceName ||
+                    service.price !== savedService.price ||
+                    service.staffName !== savedService.staffName ||
+                    (service.discountAmount || 0) !== (savedService.discountAmount || 0);
+            }) ||
+            discountAmount !== savedBill.discountAmount ||
+            paymentMethod !== savedBill.paymentMethod ||
+            currentTotal !== savedBill.totalAmount ||
+            hasBlankService;
+
+        setHasChanges(hasFormChanged);
     }, [services, discountAmount, paymentMethod, savedBill]);
 
-    const addService = () => {
-        setServices([
-            ...services,
-            { id: Date.now().toString(), serviceName: '', price: 0, discountAmount: 0, staffName: '' },
-        ]);
+    const resetServiceForm = () => {
+        setServiceForm({ serviceName: '', price: '', discountAmount: '', staffName: '' });
+        setEditingServiceId(null);
+    };
+
+    const openNewServiceModal = () => {
+        resetServiceForm();
+        setServiceModalOpen(true);
+    };
+
+    const openEditServiceModal = (service: ServiceItem) => {
+        setEditingServiceId(service.id);
+        setServiceForm({
+            serviceName: service.serviceName,
+            price: String(service.price || ''),
+            discountAmount: String(service.discountAmount || ''),
+            staffName: service.staffName || '',
+        });
+        setServiceModalOpen(true);
+    };
+
+    const saveService = () => {
+        const price = parseFloat(serviceForm.price) || 0;
+        const discountAmount = parseFloat(serviceForm.discountAmount) || 0;
+
+        if (!serviceForm.serviceName.trim()) {
+            alert('Please enter service name');
+            return;
+        }
+
+        if (price <= 0) {
+            alert('Please enter a valid price');
+            return;
+        }
+
+        if (discountAmount > price) {
+            alert('Discount cannot exceed the service price');
+            return;
+        }
+
+        const trimmedName = serviceForm.serviceName.trim();
+        const trimmedStaff = serviceForm.staffName.trim();
+
+        if (editingServiceId) {
+            setServices(services.map((s) =>
+                s.id === editingServiceId
+                    ? {
+                        ...s,
+                        serviceName: trimmedName,
+                        price,
+                        discountAmount,
+                        staffName: trimmedStaff,
+                    }
+                    : s
+            ));
+        } else {
+            setServices([
+                ...services,
+                {
+                    id: Date.now().toString(),
+                    serviceName: trimmedName,
+                    price,
+                    discountAmount,
+                    staffName: trimmedStaff,
+                },
+            ]);
+        }
+
+        resetServiceForm();
+        setServiceModalOpen(false);
     };
 
     const removeService = (id: string) => {
-        if (services.length > 1) {
-            setServices(services.filter((s) => s.id !== id));
+        setServices(services.filter((s) => s.id !== id));
+        if (editingServiceId === id) {
+            resetServiceForm();
+            setServiceModalOpen(false);
         }
-    };
-
-    const updateService = (id: string, field: keyof ServiceItem, value: string | number) => {
-        setServices(
-            services.map((s) => (s.id === id ? { ...s, [field]: value } : s))
-        );
     };
 
     const subtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
@@ -145,6 +228,15 @@ export function BillForm() {
 
         if (services.some((s) => !s.serviceName || s.price <= 0)) {
             alert('Please fill in all service details');
+            return;
+        }
+
+        const subtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
+        const serviceDiscounts = services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
+        const maxAdditionalDiscount = subtotal - serviceDiscounts;
+
+        if (discountAmount > maxAdditionalDiscount) {
+            alert('Overall discount cannot exceed the remaining amount after service discounts');
             return;
         }
 
@@ -342,84 +434,122 @@ export function BillForm() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <Label className="text-base font-semibold">Services</Label>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addService}
-                                >
-                                    <Plus className="mr-1 h-4 w-4" />
-                                    Add Service
-                                </Button>
+                                <Dialog open={serviceModalOpen} onOpenChange={(open) => {
+                                    setServiceModalOpen(open);
+                                    if (!open) resetServiceForm();
+                                }}>
+                                    <DialogTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm" onClick={openNewServiceModal}>
+                                            <Plus className="mr-1 h-4 w-4" />
+                                            Add Service
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg border border-orange-100 shadow-lg">
+                                        <DialogHeader>
+                                            <DialogTitle className="text-lg text-gray-900">{editingServiceId ? 'Edit Service' : 'Add Service'}</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="space-y-3 text-sm">
+                                            <div className="space-y-1">
+                                                <Label className="text-sm font-medium" htmlFor="service-name">Service Name</Label>
+                                                <Input
+                                                    id="service-name"
+                                                    placeholder="e.g., Haircut"
+                                                    value={serviceForm.serviceName}
+                                                    onChange={(e) => setServiceForm(prev => ({ ...prev, serviceName: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <Label className="text-sm font-medium" htmlFor="service-price">Price (₹)</Label>
+                                                    <Input
+                                                        id="service-price"
+                                                        type="number"
+                                                        placeholder="0"
+                                                        min="0"
+                                                        value={serviceForm.price}
+                                                        onChange={(e) => setServiceForm(prev => ({ ...prev, price: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-sm font-medium" htmlFor="service-discount">Discount (₹)</Label>
+                                                    <Input
+                                                        id="service-discount"
+                                                        type="number"
+                                                        placeholder="0"
+                                                        min="0"
+                                                        value={serviceForm.discountAmount}
+                                                        onChange={(e) => setServiceForm(prev => ({ ...prev, discountAmount: e.target.value }))}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-sm font-medium" htmlFor="service-staff">Staff (Optional)</Label>
+                                                <Input
+                                                    id="service-staff"
+                                                    placeholder="Staff"
+                                                    value={serviceForm.staffName}
+                                                    onChange={(e) => setServiceForm(prev => ({ ...prev, staffName: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter className="mt-4 gap-2 flex-col sm:flex-row">
+                                            <Button
+                                                variant="outline"
+                                                className="w-full sm:w-auto"
+                                                onClick={() => { resetServiceForm(); setServiceModalOpen(false); }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white shadow"
+                                                onClick={saveService}
+                                            >
+                                                {editingServiceId ? 'Update Service' : 'Add Service'}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
 
-                            {services.map((service) => (
-                                <div
-                                    key={service.id}
-                                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-5 sm:gap-3 sm:p-4"
-                                >
-                                    <div className="space-y-1 sm:col-span-2">
-                                        <Label className="text-xs">Service Name</Label>
-                                        <Input
-                                            placeholder="e.g., Haircut"
-                                            value={service.serviceName}
-                                            onChange={(e) =>
-                                                updateService(service.id, 'serviceName', e.target.value)
-                                            }
-                                            className="text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs">Price (₹)</Label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            value={service.price || ''}
-                                            onChange={(e) =>
-                                                updateService(service.id, 'price', parseFloat(e.target.value) || 0)
-                                            }
-                                            className="text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs">Discount (₹)</Label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            min="0"
-                                            value={service.discountAmount || ''}
-                                            onChange={(e) =>
-                                                updateService(service.id, 'discountAmount', parseFloat(e.target.value) || 0)
-                                            }
-                                            className="text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs">Staff (Optional)</Label>
-                                        <div className="flex gap-1 sm:gap-2">
-                                            <Input
-                                                placeholder="Staff"
-                                                value={service.staffName || ''}
-                                                onChange={(e) =>
-                                                    updateService(service.id, 'staffName', e.target.value)
-                                                }
-                                                className="text-sm"
-                                            />
-                                            {services.length > 1 && (
+                            {services.length === 0 ? (
+                                <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-600">No services added yet. Tap “Add Service” to start.</div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {services.map((service) => (
+                                        <div key={service.id} className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="space-y-0.5">
+                                                <div className="font-medium text-gray-900">{service.serviceName || 'Untitled service'}</div>
+                                                <div className="text-gray-600 flex flex-wrap gap-3">
+                                                    <span>Price: {formatINR(service.price)}</span>
+                                                    <span>Discount: {formatINR(service.discountAmount || 0)}</span>
+                                                    {service.staffName ? <span>Staff: {service.staffName}</span> : null}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => openEditServiceModal(service)}
+                                                    aria-label="Edit service"
+                                                    className="text-gray-600 hover:text-gray-900"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => removeService(service.id)}
-                                                    className="shrink-0 text-red-500 hover:text-red-700"
+                                                    className="text-red-500 hover:text-red-700"
                                                 >
-                                                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
-                                            )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
+                            )}
                         </div>
 
                         <Separator />
@@ -428,12 +558,12 @@ export function BillForm() {
                         <div className="space-y-3">
                             <div className="flex justify-between text-sm">
                                 <span>Subtotal</span>
-                                <span>₹{subtotal.toFixed(2)}</span>
+                                <span>{formatINR(subtotal)}</span>
                             </div>
                             {serviceDiscounts > 0 && (
                                 <div className="flex justify-between text-sm text-green-600">
                                     <span>Service Discounts</span>
-                                    <span>-₹{serviceDiscounts.toFixed(2)}</span>
+                                    <span>{formatINR(-serviceDiscounts)}</span>
                                 </div>
                             )}
                             <div className="flex items-center justify-between gap-4">
@@ -451,7 +581,7 @@ export function BillForm() {
                             {discountAmount > 0 && (
                                 <div className="flex justify-between text-sm text-green-600">
                                     <span>Additional Discount</span>
-                                    <span>-₹{discountAmount.toFixed(2)}</span>
+                                    <span>{formatINR(-discountAmount)}</span>
                                 </div>
                             )}
                             <div className="flex items-center justify-between gap-4">
@@ -470,7 +600,7 @@ export function BillForm() {
                             <Separator />
                             <div className="flex justify-between text-lg font-bold">
                                 <span>Total</span>
-                                <span className="text-orange-500">₹{totalAmount.toFixed(2)}</span>
+                                <span className="text-orange-500">{formatINR(totalAmount)}</span>
                             </div>
                         </div>
 
@@ -598,7 +728,7 @@ export function BillForm() {
                                     </div>
                                     <div>
                                         <span className="text-gray-500">Phone:</span>
-                                        <span className="ml-2">{maskPhoneNumber(selectedCustomer.phone)}</span>
+                                        <span className="ml-2">{selectedCustomer.phone ? maskPhoneNumber(selectedCustomer.phone) : 'N/A'}</span>
                                     </div>
                                 </div>
                             )}
@@ -623,11 +753,11 @@ export function BillForm() {
                                             return (
                                                 <tr key={service.id} className="border-b border-gray-100">
                                                     <td className="py-2">{service.serviceName}</td>
-                                                    <td className="py-2 text-right">₹{service.price.toFixed(2)}</td>
+                                                    <td className="py-2 text-right">{formatINR(service.price)}</td>
                                                     <td className="py-2 text-right text-green-600">
-                                                        {service.discountAmount > 0 ? `-₹${service.discountAmount.toFixed(2)}` : '-'}
+                                                        {service.discountAmount > 0 ? formatINR(-service.discountAmount) : '-'}
                                                     </td>
-                                                    <td className="py-2 text-right font-medium">₹{serviceTotal.toFixed(2)}</td>
+                                                    <td className="py-2 text-right font-medium">{formatINR(serviceTotal)}</td>
                                                 </tr>
                                             );
                                         })}
@@ -638,18 +768,18 @@ export function BillForm() {
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span>Subtotal</span>
-                                    <span>₹{subtotal.toFixed(2)}</span>
+                                    <span>{formatINR(subtotal)}</span>
                                 </div>
                                 {serviceDiscounts > 0 && (
                                     <div className="flex justify-between text-green-600">
                                         <span>Service Discounts</span>
-                                        <span>-₹{serviceDiscounts.toFixed(2)}</span>
+                                        <span>{formatINR(-serviceDiscounts)}</span>
                                     </div>
                                 )}
                                 {discountAmount > 0 && (
                                     <div className="flex justify-between text-green-600">
                                         <span>Additional Discount</span>
-                                        <span>-₹{discountAmount.toFixed(2)}</span>
+                                        <span>{formatINR(-discountAmount)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between">
@@ -663,7 +793,7 @@ export function BillForm() {
                                 <Separator />
                                 <div className="flex justify-between text-lg font-bold">
                                     <span>Total</span>
-                                    <span>₹{totalAmount.toFixed(2)}</span>
+                                    <span>{formatINR(totalAmount)}</span>
                                 </div>
                             </div>
 

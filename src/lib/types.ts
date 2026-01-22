@@ -9,7 +9,7 @@ export interface Branch {
 export interface Customer {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
   dateOfBirth?: string;
   createdAt: Date;
 }
@@ -27,7 +27,7 @@ export interface Bill {
   billNumber: string;
   customerId: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone?: string;
   branchId: string;
   branchName: string;
   branchAddress: string;

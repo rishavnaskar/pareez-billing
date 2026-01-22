@@ -8,6 +8,7 @@ import { Bill } from '@/lib/types';
 import { BillLogo } from './BillLogo';
 import { BillQRCode } from './BillQRCode';
 import { format } from 'date-fns';
+import { formatINR } from '@/lib/currency';
 import { Download, Share2 } from 'lucide-react';
 import { generateBillPDF } from '@/lib/pdf-generator';
 import { maskPhoneNumber } from '@/lib/phone-mask';
@@ -149,7 +150,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             </div>
                             <div>
                                 <span className="text-gray-500">Phone:</span>
-                                <span className="ml-2">{user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone)}</span>
+                                <span className="ml-2">{bill.customerPhone ? (user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone)) : 'N/A'}</span>
                             </div>
                         </div>
 
@@ -181,11 +182,11 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                                     return (
                                         <tr key={service.id} className="border-b border-gray-100">
                                             <td className="py-2">{service.serviceName}</td>
-                                            <td className="py-2 text-right">₹{service.price.toFixed(2)}</td>
+                                            <td className="py-2 text-right">{formatINR(service.price)}</td>
                                             <td className="py-2 text-right text-green-600">
-                                                {service.discountAmount > 0 ? `-₹${service.discountAmount.toFixed(2)}` : '-'}
+                                                {service.discountAmount > 0 ? formatINR(-service.discountAmount) : '-'}
                                             </td>
-                                            <td className="py-2 text-right font-medium">₹{serviceTotal.toFixed(2)}</td>
+                                            <td className="py-2 text-right font-medium">{formatINR(serviceTotal)}</td>
                                         </tr>
                                     );
                                 })}
@@ -196,21 +197,21 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
-                                <span>₹{bill.subtotal.toFixed(2)}</span>
+                                <span>{formatINR(bill.subtotal)}</span>
                             </div>
                             {(() => {
                                 const serviceDiscounts = bill.services.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
                                 return serviceDiscounts > 0 && (
                                     <div className="flex justify-between text-green-600">
                                         <span>Service Discounts</span>
-                                        <span>-₹{serviceDiscounts.toFixed(2)}</span>
+                                        <span>{formatINR(-serviceDiscounts)}</span>
                                     </div>
                                 );
                             })()}
                             {bill.discountAmount > 0 && (
                                 <div className="flex justify-between text-green-600">
                                     <span>Additional Discount</span>
-                                    <span>-₹{bill.discountAmount.toFixed(2)}</span>
+                                    <span>{formatINR(-bill.discountAmount)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
@@ -224,7 +225,7 @@ export function BillPreview({ bill, children }: BillPreviewProps) {
                             <Separator />
                             <div className="flex justify-between text-lg font-bold">
                                 <span>Total</span>
-                                <span>₹{bill.totalAmount.toFixed(2)}</span>
+                                <span>{formatINR(bill.totalAmount)}</span>
                             </div>
                         </div>
 

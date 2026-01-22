@@ -1,4 +1,5 @@
 import { Bill } from './types';
+import { formatINR } from './currency';
 
 /**
  * Generate WhatsApp share message for a bill
@@ -10,7 +11,7 @@ export function generateWhatsAppMessage(bill: Bill, billUrl: string): string {
   return `Bill from Pareez Unisex Professional Salon
 Bill No: ${bill.billNumber}
 Customer: ${bill.customerName}
-Total Amount: ₹${bill.totalAmount.toFixed(2)}
+Total Amount: ${formatINR(bill.totalAmount)}
 
 View your bill online: ${billUrl}
 
@@ -29,7 +30,7 @@ Facebook: PAREEZ.salon`;
  */
 export function shareBillViaWhatsApp(bill: Bill, billId: string): void {
   // Generate shareable link for the bill
-  const billUrl = typeof window !== 'undefined' 
+  const billUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/bill/${billId}`
     : '';
 
