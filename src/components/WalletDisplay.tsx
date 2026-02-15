@@ -2,7 +2,7 @@
 
 import { CustomerWallet } from "@/lib/types";
 import { TierBadge } from "./TierBadge";
-import { TIER_CONFIG, getTierProgress } from "@/lib/wallet";
+import { TIER_CONFIG, getTierProgress, getCashbackRate, getMaxRedemptionRate } from "@/lib/wallet";
 import { formatINR } from "@/lib/currency";
 import { Wallet, TrendingUp, Gift } from "lucide-react";
 
@@ -81,13 +81,13 @@ export function WalletDisplay({ wallet, compact = false }: WalletDisplayProps) {
           <div className="bg-white/60 rounded-md p-2">
             <p className="text-gray-500">Cashback Rate</p>
             <p className="font-semibold text-green-600">
-              {Math.round(config.cashbackRate * 100)}%
+              {Math.round(getCashbackRate(wallet.tier) * 100)}%
             </p>
           </div>
           <div className="bg-white/60 rounded-md p-2">
             <p className="text-gray-500">Max Redemption</p>
             <p className="font-semibold text-blue-600">
-              {Math.round(config.maxRedemptionRate * 100)}% of bill
+              {Math.round(getMaxRedemptionRate(wallet.tier) * 100)}% of bill
             </p>
           </div>
         </div>

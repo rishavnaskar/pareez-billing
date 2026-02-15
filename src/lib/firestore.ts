@@ -26,7 +26,7 @@ import {
   getTierFromSpend,
   shouldDowngradeForInactivity,
   getTierBelow,
-  WELCOME_BONUS,
+  getWelcomeBonus,
 } from "./wallet";
 import { cache, CACHE_KEYS } from "./cache";
 
@@ -50,9 +50,9 @@ export async function addCustomer(
   await addDoc(collection(db, "walletTransactions"), {
     customerId: docRef.id,
     type: "welcome_bonus",
-    amount: WELCOME_BONUS,
+    amount: getWelcomeBonus(),
     description: "Welcome bonus for joining Pareez!",
-    balanceAfter: WELCOME_BONUS,
+    balanceAfter: getWelcomeBonus(),
     tierAtTransaction: "bronze",
     createdAt: Timestamp.now(),
   });
@@ -566,9 +566,9 @@ export async function initializeWalletForCustomer(
   await addDoc(collection(db, "walletTransactions"), {
     customerId,
     type: "welcome_bonus",
-    amount: WELCOME_BONUS,
+    amount: getWelcomeBonus(),
     description: "Welcome bonus for joining Pareez!",
-    balanceAfter: WELCOME_BONUS,
+    balanceAfter: getWelcomeBonus(),
     tierAtTransaction: "bronze",
     createdAt: Timestamp.now(),
   });

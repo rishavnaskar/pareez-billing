@@ -1,4 +1,12 @@
 import { MembershipTier, CustomerWallet } from './types';
+import {
+  getCashbackRate,
+  getMaxRedemptionRate,
+  getWelcomeBonus,
+  getMinBillForCashback,
+} from './remote-config';
+
+export { getCashbackRate, getMaxRedemptionRate, getWelcomeBonus, getMinBillForCashback };
 
 // Tier configuration
 export const TIER_CONFIG: Record<MembershipTier, {
@@ -106,11 +114,11 @@ export function calculateCashback(
   tier: MembershipTier
 ): number {
   // No cashback on bills below minimum
-  if (billAmount < MIN_BILL_FOR_CASHBACK) return 0;
-  
+  if (billAmount < getMinBillForCashback()) return 0;
+
   // Cashback is calculated on the amount paid (excluding wallet usage)
   const amountPaid = billAmount - walletAmountUsed;
-  const cashbackRate = TIER_CONFIG[tier].cashbackRate;
+  const cashbackRate = getCashbackRate(tier);
   
   // Round to 2 decimal places
   return Math.round(amountPaid * cashbackRate * 100) / 100;
@@ -122,7 +130,7 @@ export function calculateMaxRedemption(
   walletBalance: number,
   tier: MembershipTier
 ): number {
-  const maxRedemptionRate = TIER_CONFIG[tier].maxRedemptionRate;
+  const maxRedemptionRate = getMaxRedemptionRate(tier);
   const maxFromBill = Math.floor(billAmount * maxRedemptionRate);
   
   // Return the lesser of max allowed and available balance
@@ -132,10 +140,11 @@ export function calculateMaxRedemption(
 // Create initial wallet for new customer
 export function createInitialWallet(): CustomerWallet {
   const now = new Date();
+  const welcomeBonus = getWelcomeBonus();
   return {
-    balance: WELCOME_BONUS,
+    balance: welcomeBonus,
     lifetimeSpend: 0,
-    lifetimeEarned: WELCOME_BONUS,
+    lifetimeEarned: welcomeBonus,
     lifetimeRedeemed: 0,
     tier: 'bronze',
     tierUpdatedAt: now,

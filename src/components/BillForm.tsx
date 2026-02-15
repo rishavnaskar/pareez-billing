@@ -56,8 +56,9 @@ import { TierBadge } from "./TierBadge";
 import {
   calculateCashback,
   calculateMaxRedemption,
-  TIER_CONFIG,
-  MIN_BILL_FOR_CASHBACK,
+  getCashbackRate,
+  getMaxRedemptionRate,
+  getMinBillForCashback,
 } from "@/lib/wallet";
 import { Switch } from "@/components/ui/switch";
 
@@ -294,7 +295,7 @@ export function BillForm() {
     : 0;
   const netPayable = totalAmount - actualWalletUsage;
   const cashbackToEarn =
-    selectedCustomer && totalAmount >= MIN_BILL_FOR_CASHBACK
+    selectedCustomer && totalAmount >= getMinBillForCashback()
       ? calculateCashback(
           totalAmount,
           actualWalletUsage,
@@ -345,7 +346,7 @@ export function BillForm() {
         ? Math.min(walletAmountToUse, maxRedemption)
         : 0;
       const cashback =
-        finalTotalAmount >= MIN_BILL_FOR_CASHBACK
+        finalTotalAmount >= getMinBillForCashback()
           ? calculateCashback(
               finalTotalAmount,
               walletUsage,
@@ -847,8 +848,7 @@ export function BillForm() {
                       <p className="text-xs text-gray-400">
                         (
                         {Math.round(
-                          TIER_CONFIG[selectedCustomer.wallet.tier]
-                            .maxRedemptionRate * 100,
+                          getMaxRedemptionRate(selectedCustomer.wallet.tier) * 100,
                         )}
                         % of bill)
                       </p>
@@ -924,8 +924,7 @@ export function BillForm() {
                           <strong>{formatINR(cashbackToEarn)}</strong> cashback
                           (
                           {Math.round(
-                            TIER_CONFIG[selectedCustomer.wallet.tier]
-                              .cashbackRate * 100,
+                            getCashbackRate(selectedCustomer.wallet.tier) * 100,
                           )}
                           %)
                         </span>
@@ -933,10 +932,10 @@ export function BillForm() {
                     </div>
                   )}
 
-                  {totalAmount < MIN_BILL_FOR_CASHBACK && totalAmount > 0 && (
+                  {totalAmount < getMinBillForCashback() && totalAmount > 0 && (
                     <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
                       <p className="text-xs text-yellow-700">
-                        💡 Minimum bill of {formatINR(MIN_BILL_FOR_CASHBACK)}{" "}
+                        💡 Minimum bill of {formatINR(getMinBillForCashback())}{" "}
                         required to earn cashback
                       </p>
                     </div>

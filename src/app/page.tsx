@@ -1,6 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { initRemoteConfig } from '@/lib/remote-config';
+
+if (typeof window !== 'undefined') {
+  initRemoteConfig();
+}
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { CustomerList } from '@/components/CustomerList';
