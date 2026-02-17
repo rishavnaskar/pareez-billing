@@ -9,6 +9,37 @@ export interface Branch {
 // Membership tier types
 export type MembershipTier = "bronze" | "silver" | "gold" | "platinum";
 
+// Payment method type
+export type PaymentMethod = "cash" | "card" | "upi";
+
+// Day of week type
+export type DayOfWeek = "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
+
+// Tier rates for cashback config
+export interface TierRates {
+  cashbackRate: number;       // e.g. 0.05 = 5%
+  maxRedemptionRate: number;  // e.g. 0.10 = 10%
+}
+
+// Branch-specific cashback configuration
+export interface BranchCashbackConfig {
+  branchId: string;
+  welcomeBonus: number;
+  minBillForCashback: number;
+  eligiblePaymentMethodsForDiscount: Record<PaymentMethod, boolean>;
+  dayConfig: Record<DayOfWeek, Record<MembershipTier, TierRates>>;
+  updatedAt: Date;
+}
+
+// Resolved rates for a specific context
+export interface ResolvedRates {
+  cashbackRate: number;
+  maxRedemptionRate: number;
+  welcomeBonus: number;
+  minBillForCashback: number;
+  isPaymentMethodEligible: boolean;
+}
+
 // Customer wallet for cashback system
 export interface CustomerWallet {
   balance: number; // Current cashback balance
@@ -65,13 +96,15 @@ export interface Bill {
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
-  paymentMethod: "cash" | "card" | "upi";
+  paymentMethod: PaymentMethod;
   // Cashback/wallet fields
   cashbackEarned: number; // Cashback credited for this bill
   walletAmountUsed: number; // Wallet balance used for payment
   netPayableAmount: number; // totalAmount - walletAmountUsed
   customerTierAtPurchase: MembershipTier; // Tier when bill was created
   walletBalanceAfter: number; // Customer's wallet balance after this transaction
+  cashbackRateApplied?: number; // The cashback rate used for this bill
+  maxRedemptionRateApplied?: number; // The max redemption rate used for this bill
   createdAt: Date;
 }
 

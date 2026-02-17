@@ -34,7 +34,7 @@ import {
   getCustomerById,
 } from "@/lib/firestore";
 import { getBranchById } from "@/lib/branches";
-import { Customer, ServiceItem, Bill, Branch } from "@/lib/types";
+import { Customer, ServiceItem, Bill, Branch, PaymentMethod, ResolvedRates } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareBillViaWhatsApp } from "@/lib/whatsapp";
 import {
@@ -56,10 +56,8 @@ import { TierBadge } from "./TierBadge";
 import {
   calculateCashback,
   calculateMaxRedemption,
-  getCashbackRate,
-  getMaxRedemptionRate,
-  getMinBillForCashback,
 } from "@/lib/wallet";
+import { resolveAllRates } from "@/lib/branch-config";
 import { Switch } from "@/components/ui/switch";
 
 export function BillForm() {
@@ -80,10 +78,9 @@ export function BillForm() {
     staffName: "",
   });
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "upi">(
-    "cash",
-  );
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [loading, setLoading] = useState(false);
+  const [resolvedRates, setResolvedRates] = useState<ResolvedRates | null>(null);
   const [savedBill, setSavedBill] = useState<Bill | null>(null);
   const [customerSearchKey, setCustomerSearchKey] = useState(0);
   const [hasChanges, setHasChanges] = useState(false);
@@ -154,6 +151,23 @@ export function BillForm() {
     };
     fetchBranchAndBillNumber();
   }, [selectedBranchId]);
+
+  // Resolve rates when branch, payment method, or customer tier changes
+  useEffect(() => {
+    if (!selectedBranchId || !selectedCustomer) {
+      setResolvedRates(null);
+      return;
+    }
+    let cancelled = false;
+    resolveAllRates(
+      selectedBranchId,
+      selectedCustomer.wallet.tier,
+      paymentMethod
+    ).then((rates) => {
+      if (!cancelled) setResolvedRates(rates);
+    });
+    return () => { cancelled = true; };
+  }, [selectedBranchId, paymentMethod, selectedCustomer?.wallet?.tier, selectedCustomer?.id]);
 
   // Detect changes when bill is saved
   useEffect(() => {
@@ -283,11 +297,12 @@ export function BillForm() {
   const totalAmount = subtotal - serviceDiscounts - discountAmount;
 
   // Calculate wallet-related values
-  const maxRedemption = selectedCustomer
+  const isEligible = resolvedRates?.isPaymentMethodEligible ?? true;
+  const maxRedemption = selectedCustomer && isEligible && resolvedRates
     ? calculateMaxRedemption(
         totalAmount,
         selectedCustomer.wallet.balance,
-        selectedCustomer.wallet.tier,
+        resolvedRates.maxRedemptionRate,
       )
     : 0;
   const actualWalletUsage = useWallet
@@ -295,11 +310,12 @@ export function BillForm() {
     : 0;
   const netPayable = totalAmount - actualWalletUsage;
   const cashbackToEarn =
-    selectedCustomer && totalAmount >= getMinBillForCashback()
+    selectedCustomer && resolvedRates && isEligible
       ? calculateCashback(
           totalAmount,
           actualWalletUsage,
-          selectedCustomer.wallet.tier,
+          resolvedRates.cashbackRate,
+          resolvedRates.minBillForCashback,
         )
       : 0;
 
@@ -346,11 +362,12 @@ export function BillForm() {
         ? Math.min(walletAmountToUse, maxRedemption)
         : 0;
       const cashback =
-        finalTotalAmount >= getMinBillForCashback()
+        resolvedRates && isEligible
           ? calculateCashback(
               finalTotalAmount,
               walletUsage,
-              selectedCustomer.wallet.tier,
+              resolvedRates.cashbackRate,
+              resolvedRates.minBillForCashback,
             )
           : 0;
 
@@ -373,6 +390,8 @@ export function BillForm() {
         customerTierAtPurchase: selectedCustomer.wallet.tier,
         walletBalanceAfter:
           selectedCustomer.wallet.balance - walletUsage + cashback,
+        cashbackRateApplied: resolvedRates?.cashbackRate ?? 0,
+        maxRedemptionRateApplied: resolvedRates?.maxRedemptionRate ?? 0,
       };
 
       if (savedBill) {
@@ -569,7 +588,7 @@ export function BillForm() {
                 onSelect={setSelectedCustomer}
                 selectedCustomer={selectedCustomer}
               />
-              <CustomerForm onSuccess={handleCustomerCreated} />
+              <CustomerForm onSuccess={handleCustomerCreated} branchId={selectedBranchId ?? undefined} />
             </div>
 
             <Separator />
@@ -796,7 +815,7 @@ export function BillForm() {
                 <Label className="text-sm">Payment Method</Label>
                 <Select
                   value={paymentMethod}
-                  onValueChange={(value: "cash" | "card" | "upi") =>
+                  onValueChange={(value: PaymentMethod) =>
                     setPaymentMethod(value)
                   }
                 >
@@ -820,8 +839,17 @@ export function BillForm() {
                 </span>
               </div>
 
+              {/* Payment method not eligible notice */}
+              {selectedCustomer && !savedBill && resolvedRates && !isEligible && (
+                <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-700">
+                    Wallet & cashback rewards are not available for {paymentMethod} payments at this branch.
+                  </p>
+                </div>
+              )}
+
               {/* Wallet Section */}
-              {selectedCustomer && !savedBill && (
+              {selectedCustomer && !savedBill && isEligible && resolvedRates && (
                 <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -848,7 +876,7 @@ export function BillForm() {
                       <p className="text-xs text-gray-400">
                         (
                         {Math.round(
-                          getMaxRedemptionRate(selectedCustomer.wallet.tier) * 100,
+                          resolvedRates.maxRedemptionRate * 100,
                         )}
                         % of bill)
                       </p>
@@ -924,7 +952,7 @@ export function BillForm() {
                           <strong>{formatINR(cashbackToEarn)}</strong> cashback
                           (
                           {Math.round(
-                            getCashbackRate(selectedCustomer.wallet.tier) * 100,
+                            resolvedRates.cashbackRate * 100,
                           )}
                           %)
                         </span>
@@ -932,10 +960,10 @@ export function BillForm() {
                     </div>
                   )}
 
-                  {totalAmount < getMinBillForCashback() && totalAmount > 0 && (
+                  {totalAmount < resolvedRates.minBillForCashback && totalAmount > 0 && (
                     <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
                       <p className="text-xs text-yellow-700">
-                        💡 Minimum bill of {formatINR(getMinBillForCashback())}{" "}
+                        💡 Minimum bill of {formatINR(resolvedRates.minBillForCashback)}{" "}
                         required to earn cashback
                       </p>
                     </div>

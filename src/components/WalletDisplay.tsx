@@ -2,16 +2,18 @@
 
 import { CustomerWallet } from "@/lib/types";
 import { TierBadge } from "./TierBadge";
-import { TIER_CONFIG, getTierProgress, getCashbackRate, getMaxRedemptionRate } from "@/lib/wallet";
+import { TIER_CONFIG, getTierProgress } from "@/lib/wallet";
 import { formatINR } from "@/lib/currency";
 import { Wallet, TrendingUp, Gift } from "lucide-react";
 
 interface WalletDisplayProps {
   wallet: CustomerWallet;
   compact?: boolean;
+  cashbackRate?: number;
+  maxRedemptionRate?: number;
 }
 
-export function WalletDisplay({ wallet, compact = false }: WalletDisplayProps) {
+export function WalletDisplay({ wallet, compact = false, cashbackRate, maxRedemptionRate }: WalletDisplayProps) {
   const tierProgress = getTierProgress(wallet.lifetimeSpend);
   const config = TIER_CONFIG[wallet.tier];
 
@@ -72,26 +74,28 @@ export function WalletDisplay({ wallet, compact = false }: WalletDisplayProps) {
       )}
 
       {/* Tier Benefits */}
-      <div className="mt-3 pt-3 border-t border-orange-200">
-        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-          <Gift className="h-3 w-3" />
-          Your Benefits
-        </p>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-white/60 rounded-md p-2">
-            <p className="text-gray-500">Cashback Rate</p>
-            <p className="font-semibold text-green-600">
-              {Math.round(getCashbackRate(wallet.tier) * 100)}%
-            </p>
-          </div>
-          <div className="bg-white/60 rounded-md p-2">
-            <p className="text-gray-500">Max Redemption</p>
-            <p className="font-semibold text-blue-600">
-              {Math.round(getMaxRedemptionRate(wallet.tier) * 100)}% of bill
-            </p>
+      {(cashbackRate !== undefined && maxRedemptionRate !== undefined) && (
+        <div className="mt-3 pt-3 border-t border-orange-200">
+          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+            <Gift className="h-3 w-3" />
+            Your Benefits
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-white/60 rounded-md p-2">
+              <p className="text-gray-500">Cashback Rate</p>
+              <p className="font-semibold text-green-600">
+                {Math.round(cashbackRate * 100)}%
+              </p>
+            </div>
+            <div className="bg-white/60 rounded-md p-2">
+              <p className="text-gray-500">Max Redemption</p>
+              <p className="font-semibold text-blue-600">
+                {Math.round(maxRedemptionRate * 100)}% of bill
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

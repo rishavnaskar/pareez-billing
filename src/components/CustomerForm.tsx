@@ -20,9 +20,10 @@ interface CustomerFormProps {
     onSuccess: (customer: { name: string; phone?: string; dateOfBirth?: string }) => void;
     editingCustomer?: Customer | null;
     setEditingCustomer?: (customer: Customer | null) => void;
+    branchId?: string;
 }
 
-export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }: CustomerFormProps) {
+export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer, branchId }: CustomerFormProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer }:
                 setEditingCustomer?.(null);
             } else {
                 // Create new customer
-                await addCustomer(formData);
+                await addCustomer(formData, branchId);
             }
 
             setOpen(false);

@@ -26,15 +26,20 @@ import {
   getTierFromSpend,
   shouldDowngradeForInactivity,
   getTierBelow,
-  getWelcomeBonus,
 } from "./wallet";
+import { getBranchConfig, getDefaultBranchConfig } from "./branch-config";
 import { cache, CACHE_KEYS } from "./cache";
 
 // Customer operations
 export async function addCustomer(
   customer: Omit<Customer, "id" | "createdAt" | "wallet">,
+  branchId?: string,
 ): Promise<string> {
-  const wallet = createInitialWallet();
+  const config = branchId
+    ? await getBranchConfig(branchId)
+    : getDefaultBranchConfig("default");
+  const welcomeBonus = config.welcomeBonus;
+  const wallet = createInitialWallet(welcomeBonus);
 
   const docRef = await addDoc(collection(db, "customers"), {
     ...customer,
@@ -50,9 +55,9 @@ export async function addCustomer(
   await addDoc(collection(db, "walletTransactions"), {
     customerId: docRef.id,
     type: "welcome_bonus",
-    amount: getWelcomeBonus(),
+    amount: welcomeBonus,
     description: "Welcome bonus for joining Pareez!",
-    balanceAfter: getWelcomeBonus(),
+    balanceAfter: welcomeBonus,
     tierAtTransaction: "bronze",
     createdAt: Timestamp.now(),
   });
@@ -84,7 +89,7 @@ export async function getCustomers(): Promise<Customer[]> {
             tierUpdatedAt: data.wallet.tierUpdatedAt?.toDate() || new Date(),
             lastActivityAt: data.wallet.lastActivityAt?.toDate() || new Date(),
           }
-        : createInitialWallet(),
+        : createInitialWallet(0),
       createdAt: data.createdAt?.toDate() || new Date(),
     };
   }) as Customer[];
@@ -288,7 +293,7 @@ export async function getCustomerById(
             tierUpdatedAt: data.wallet.tierUpdatedAt?.toDate() || new Date(),
             lastActivityAt: data.wallet.lastActivityAt?.toDate() || new Date(),
           }
-        : createInitialWallet(),
+        : createInitialWallet(0),
       createdAt: data.createdAt?.toDate() || new Date(),
     } as Customer;
   }
@@ -333,7 +338,7 @@ export async function processBillWithWallet(
 
     const customerData = customerSnap.data();
     const currentWallet: CustomerWallet =
-      customerData.wallet || createInitialWallet();
+      customerData.wallet || createInitialWallet(0);
 
     // Validate wallet amount
     if (walletAmountToUse > currentWallet.balance) {
@@ -441,7 +446,7 @@ export async function adjustWalletBalance(
 
     const customerData = customerSnap.data();
     const currentWallet: CustomerWallet =
-      customerData.wallet || createInitialWallet();
+      customerData.wallet || createInitialWallet(0);
 
     const newBalance = currentWallet.balance + amount;
     if (newBalance < 0) {
@@ -537,6 +542,7 @@ export async function checkAndApplyInactivityDowngrade(
 // Initialize wallet for existing customers (migration helper)
 export async function initializeWalletForCustomer(
   customerId: string,
+  branchId?: string,
 ): Promise<void> {
   const customerRef = doc(db, "customers", customerId);
   const customerSnap = await getDoc(customerRef);
@@ -552,7 +558,11 @@ export async function initializeWalletForCustomer(
     return;
   }
 
-  const wallet = createInitialWallet();
+  const config = branchId
+    ? await getBranchConfig(branchId)
+    : getDefaultBranchConfig("default");
+  const welcomeBonus = config.welcomeBonus;
+  const wallet = createInitialWallet(welcomeBonus);
 
   await updateDoc(customerRef, {
     wallet: {
@@ -566,9 +576,9 @@ export async function initializeWalletForCustomer(
   await addDoc(collection(db, "walletTransactions"), {
     customerId,
     type: "welcome_bonus",
-    amount: getWelcomeBonus(),
+    amount: welcomeBonus,
     description: "Welcome bonus for joining Pareez!",
-    balanceAfter: getWelcomeBonus(),
+    balanceAfter: welcomeBonus,
     tierAtTransaction: "bronze",
     createdAt: Timestamp.now(),
   });

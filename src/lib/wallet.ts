@@ -1,21 +1,11 @@
 import { MembershipTier, CustomerWallet } from './types';
-import {
-  getCashbackRate,
-  getMaxRedemptionRate,
-  getWelcomeBonus,
-  getMinBillForCashback,
-} from './remote-config';
 
-export { getCashbackRate, getMaxRedemptionRate, getWelcomeBonus, getMinBillForCashback };
-
-// Tier configuration
+// Tier configuration (display fields only — rates come from branch config)
 export const TIER_CONFIG: Record<MembershipTier, {
   name: string;
   emoji: string;
   minSpend: number;
   maxSpend: number;
-  cashbackRate: number;      // Percentage of bill amount earned as cashback
-  maxRedemptionRate: number; // Max percentage of bill that can be paid via wallet
   color: string;
   bgColor: string;
   borderColor: string;
@@ -25,8 +15,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
     emoji: '🥉',
     minSpend: 0,
     maxSpend: 4999,
-    cashbackRate: 0.05,      // 5%
-    maxRedemptionRate: 0.10, // 10%
     color: 'text-amber-700',
     bgColor: 'bg-amber-100',
     borderColor: 'border-amber-300',
@@ -36,8 +24,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
     emoji: '🥈',
     minSpend: 5000,
     maxSpend: 14999,
-    cashbackRate: 0.07,      // 7%
-    maxRedemptionRate: 0.12, // 12%
     color: 'text-gray-600',
     bgColor: 'bg-gray-200',
     borderColor: 'border-gray-400',
@@ -47,8 +33,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
     emoji: '🥇',
     minSpend: 15000,
     maxSpend: 29999,
-    cashbackRate: 0.10,      // 10%
-    maxRedemptionRate: 0.15, // 15%
     color: 'text-yellow-600',
     bgColor: 'bg-yellow-100',
     borderColor: 'border-yellow-400',
@@ -58,19 +42,11 @@ export const TIER_CONFIG: Record<MembershipTier, {
     emoji: '💎',
     minSpend: 30000,
     maxSpend: Infinity,
-    cashbackRate: 0.12,      // 12%
-    maxRedemptionRate: 0.20, // 20%
     color: 'text-purple-600',
     bgColor: 'bg-purple-100',
     borderColor: 'border-purple-400',
   },
 };
-
-// Welcome bonus amount for new customers
-export const WELCOME_BONUS = 50;
-
-// Minimum bill amount to earn cashback
-export const MIN_BILL_FOR_CASHBACK = 200;
 
 // Inactivity downgrade rules
 // After X days of inactivity, tier drops by 1 level
@@ -111,15 +87,15 @@ export function shouldDowngradeForInactivity(wallet: CustomerWallet): boolean {
 export function calculateCashback(
   billAmount: number,
   walletAmountUsed: number,
-  tier: MembershipTier
+  cashbackRate: number,
+  minBillForCashback: number
 ): number {
   // No cashback on bills below minimum
-  if (billAmount < getMinBillForCashback()) return 0;
+  if (billAmount < minBillForCashback) return 0;
 
   // Cashback is calculated on the amount paid (excluding wallet usage)
   const amountPaid = billAmount - walletAmountUsed;
-  const cashbackRate = getCashbackRate(tier);
-  
+
   // Round to 2 decimal places
   return Math.round(amountPaid * cashbackRate * 100) / 100;
 }
@@ -128,19 +104,17 @@ export function calculateCashback(
 export function calculateMaxRedemption(
   billAmount: number,
   walletBalance: number,
-  tier: MembershipTier
+  maxRedemptionRate: number
 ): number {
-  const maxRedemptionRate = getMaxRedemptionRate(tier);
   const maxFromBill = Math.floor(billAmount * maxRedemptionRate);
-  
+
   // Return the lesser of max allowed and available balance
   return Math.min(maxFromBill, walletBalance);
 }
 
 // Create initial wallet for new customer
-export function createInitialWallet(): CustomerWallet {
+export function createInitialWallet(welcomeBonus: number): CustomerWallet {
   const now = new Date();
-  const welcomeBonus = getWelcomeBonus();
   return {
     balance: welcomeBonus,
     lifetimeSpend: 0,

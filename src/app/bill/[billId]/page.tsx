@@ -373,7 +373,7 @@ export default function BillPreviewPage() {
                   </p>
                   <p className="text-xs text-green-600 mt-1">
                     {bill.customerTierAtPurchase &&
-                      `${Math.round(TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.cashbackRate * 100)}% ${TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.name} reward`}
+                      `${Math.round((bill.cashbackRateApplied ?? 0) * 100)}% ${TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.name} reward`}
                   </p>
                 </div>
               )}
