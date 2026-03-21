@@ -303,6 +303,7 @@ export function BillForm() {
         totalAmount,
         selectedCustomer.wallet.balance,
         resolvedRates.maxRedemptionRate,
+        resolvedRates.minBillForCashback,
       )
     : 0;
   const actualWalletUsage = useWallet
@@ -319,11 +320,18 @@ export function BillForm() {
         )
       : 0;
 
-  // Reset wallet usage when customer changes
+  // Reset wallet usage when customer changes or bill drops below minimum
   useEffect(() => {
     setUseWallet(false);
     setWalletAmountToUse(0);
   }, [selectedCustomer?.id]);
+
+  useEffect(() => {
+    if (maxRedemption === 0) {
+      setUseWallet(false);
+      setWalletAmountToUse(0);
+    }
+  }, [maxRedemption]);
 
   const handleSaveBill = async () => {
     if (!selectedCustomer) {
@@ -964,7 +972,7 @@ export function BillForm() {
                     <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
                       <p className="text-xs text-yellow-700">
                         💡 Minimum bill of {formatINR(resolvedRates.minBillForCashback)}{" "}
-                        required to earn cashback
+                        required to earn cashback or redeem wallet balance
                       </p>
                     </div>
                   )}

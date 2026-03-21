@@ -105,8 +105,11 @@ export function calculateCashback(
 export function calculateMaxRedemption(
   billAmount: number,
   walletBalance: number,
-  maxRedemptionRate: number
+  maxRedemptionRate: number,
+  minBillForRedemption: number = 0,
 ): number {
+  if (billAmount < minBillForRedemption) return 0;
+
   const maxFromBill = Math.floor(billAmount * maxRedemptionRate);
 
   // Return the lesser of max allowed and available balance

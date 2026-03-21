@@ -328,8 +328,9 @@ export async function processBillWithWallet(
   walletAmountToUse: number,
   cashbackToEarn: number,
 ): Promise<{ billId: string; updatedWallet: CustomerWallet }> {
-  // Fetch tier config before entering transaction (cannot do Firestore reads outside transaction object)
+  // Fetch configs before entering transaction (cannot do Firestore reads outside transaction object)
   const tierConfig = await getBranchTierConfig(bill.branchId);
+  const branchConfig = await getBranchConfig(bill.branchId);
 
   return await runTransaction(db, async (transaction) => {
     const customerRef = doc(db, "customers", customerId);
@@ -346,6 +347,10 @@ export async function processBillWithWallet(
     // Validate wallet amount
     if (walletAmountToUse > currentWallet.balance) {
       throw new Error("Insufficient wallet balance");
+    }
+
+    if (walletAmountToUse > 0 && bill.totalAmount < branchConfig.minBillForCashback) {
+      throw new Error("Bill total is below the minimum required for wallet redemption");
     }
 
     // Calculate new wallet state
