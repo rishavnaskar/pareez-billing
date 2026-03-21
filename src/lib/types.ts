@@ -13,12 +13,26 @@ export type MembershipTier = "bronze" | "silver" | "gold" | "platinum";
 export type PaymentMethod = "cash" | "card" | "upi";
 
 // Day of week type
-export type DayOfWeek = "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
+export type DayOfWeek =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday";
+
+// Branch-specific tier thresholds (minimum lifetime spend for each tier)
+export interface TierConfig {
+  branchId: string;
+  thresholds: Record<MembershipTier, number>;
+  updatedAt: Date;
+}
 
 // Tier rates for cashback config
 export interface TierRates {
-  cashbackRate: number;       // e.g. 0.05 = 5%
-  maxRedemptionRate: number;  // e.g. 0.10 = 10%
+  cashbackRate: number; // e.g. 0.05 = 5%
+  maxRedemptionRate: number; // e.g. 0.10 = 10%
 }
 
 // Branch-specific cashback configuration

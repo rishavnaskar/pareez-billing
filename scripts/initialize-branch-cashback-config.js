@@ -66,31 +66,63 @@ function buildConfig(branchId) {
   };
 }
 
+// ── Tier thresholds per branch ────────────────────────────────────────
+const TIER_THRESHOLDS = {
+  // Safui Para — default thresholds
+  'BRANCH_DOC_ID_1': { bronze: 0, silver: 5000, gold: 15000, platinum: 30000 },
+  // KaliBari — custom thresholds
+  'BRANCH_DOC_ID_2': { bronze: 0, silver: 12000, gold: 20000, platinum: 30000 },
+};
+
+function buildTierConfig(branchId) {
+  return {
+    branchId,
+    thresholds: TIER_THRESHOLDS[branchId],
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
 // ── Main ───────────────────────────────────────────────────────────────
 async function main() {
-  console.log('Setting up branch cashback configs...\n');
+  console.log('Setting up branch configs...\n');
 
   for (const branch of BRANCHES) {
-    const configRef = db
+    // Cashback config
+    const cashbackRef = db
       .collection('branches')
       .doc(branch.id)
       .collection('config')
       .doc('cashbackConfig');
 
-    const existing = await configRef.get();
-    if (existing.exists) {
-      console.log(`  [skip] ${branch.name} (${branch.id}) — config already exists`);
-      continue;
+    const existingCashback = await cashbackRef.get();
+    if (existingCashback.exists) {
+      console.log(`  [skip] ${branch.name} cashbackConfig — already exists`);
+    } else {
+      const config = buildConfig(branch.id);
+      await cashbackRef.set(config);
+      console.log(`  [created] ${branch.name} cashbackConfig`);
     }
 
-    const config = buildConfig(branch.id);
-    await configRef.set(config);
-    console.log(`  [created] ${branch.name} (${branch.id})`);
+    // Tier config
+    const tierRef = db
+      .collection('branches')
+      .doc(branch.id)
+      .collection('config')
+      .doc('tierConfig');
+
+    const existingTier = await tierRef.get();
+    if (existingTier.exists) {
+      console.log(`  [skip] ${branch.name} tierConfig — already exists`);
+    } else {
+      const tierConfig = buildTierConfig(branch.id);
+      await tierRef.set(tierConfig);
+      console.log(`  [created] ${branch.name} tierConfig`);
+    }
   }
 
-  console.log('\nDone! Configs written to branches/{id}/config/cashbackConfig');
-  console.log('\nTo customize a branch later, edit the document in Firebase Console');
-  console.log('or use saveBranchConfig() from src/lib/branch-config.ts.\n');
+  console.log('\nDone! Configs written to branches/{id}/config/');
+  console.log('  - cashbackConfig (cashback rates, welcome bonus, etc.)');
+  console.log('  - tierConfig (tier spend thresholds)\n');
 
   process.exit(0);
 }

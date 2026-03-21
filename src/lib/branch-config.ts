@@ -5,6 +5,7 @@ import {
   PaymentMethod,
   DayOfWeek,
   TierRates,
+  TierConfig,
   BranchCashbackConfig,
   ResolvedRates,
 } from "./types";
@@ -137,4 +138,51 @@ export async function resolveAllRates(
 ): Promise<ResolvedRates> {
   const config = await getBranchConfig(branchId);
   return resolveRates(config, tier, paymentMethod);
+}
+
+// ── Tier Config (separate Firestore doc: branches/{id}/config/tierConfig) ──
+
+const DEFAULT_THRESHOLDS: Record<MembershipTier, number> = {
+  bronze: 0,
+  silver: 5000,
+  gold: 15000,
+  platinum: 30000,
+};
+
+export function getDefaultTierConfig(branchId: string): TierConfig {
+  return {
+    branchId,
+    thresholds: { ...DEFAULT_THRESHOLDS },
+    updatedAt: new Date(),
+  };
+}
+
+export async function getBranchTierConfig(
+  branchId: string,
+): Promise<TierConfig> {
+  const cacheKey = CACHE_KEYS.TIER_CONFIG(branchId);
+  const cached = cache.get<TierConfig>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const docRef = doc(db, "branches", branchId, "config", "tierConfig");
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const config: TierConfig = {
+        branchId: data.branchId || branchId,
+        thresholds: data.thresholds ?? DEFAULT_THRESHOLDS,
+        updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
+      };
+      cache.set(cacheKey, config, 5 * 60 * 1000);
+      return config;
+    }
+  } catch (error) {
+    console.warn("Failed to fetch tier config, using defaults:", error);
+  }
+
+  const defaults = getDefaultTierConfig(branchId);
+  cache.set(cacheKey, defaults, 5 * 60 * 1000);
+  return defaults;
 }

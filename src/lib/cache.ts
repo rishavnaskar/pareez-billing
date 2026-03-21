@@ -53,4 +53,5 @@ export const CACHE_KEYS = {
   BILLS: (branchId?: string) => `bills_${branchId || 'all'}`,
   BILL_NUMBER: (branchId?: string) => `bill_number_${branchId || 'all'}_${new Date().toDateString()}`,
   BRANCH_CONFIG: (branchId: string) => `branch_config_${branchId}`,
+  TIER_CONFIG: (branchId: string) => `tier_config_${branchId}`,
 } as const;

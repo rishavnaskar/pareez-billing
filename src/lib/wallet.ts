@@ -1,11 +1,17 @@
 import { MembershipTier, CustomerWallet } from './types';
 
+// Default tier thresholds (minimum lifetime spend for each tier)
+export const DEFAULT_TIER_THRESHOLDS: Record<MembershipTier, number> = {
+  bronze: 0,
+  silver: 5000,
+  gold: 15000,
+  platinum: 30000,
+};
+
 // Tier configuration (display fields only — rates come from branch config)
 export const TIER_CONFIG: Record<MembershipTier, {
   name: string;
   emoji: string;
-  minSpend: number;
-  maxSpend: number;
   color: string;
   bgColor: string;
   borderColor: string;
@@ -13,8 +19,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
   bronze: {
     name: 'Bronze',
     emoji: '🥉',
-    minSpend: 0,
-    maxSpend: 4999,
     color: 'text-amber-700',
     bgColor: 'bg-amber-100',
     borderColor: 'border-amber-300',
@@ -22,8 +26,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
   silver: {
     name: 'Silver',
     emoji: '🥈',
-    minSpend: 5000,
-    maxSpend: 14999,
     color: 'text-gray-600',
     bgColor: 'bg-gray-200',
     borderColor: 'border-gray-400',
@@ -31,8 +33,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
   gold: {
     name: 'Gold',
     emoji: '🥇',
-    minSpend: 15000,
-    maxSpend: 29999,
     color: 'text-yellow-600',
     bgColor: 'bg-yellow-100',
     borderColor: 'border-yellow-400',
@@ -40,8 +40,6 @@ export const TIER_CONFIG: Record<MembershipTier, {
   platinum: {
     name: 'Platinum',
     emoji: '💎',
-    minSpend: 30000,
-    maxSpend: Infinity,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100',
     borderColor: 'border-purple-400',
@@ -58,10 +56,13 @@ export const INACTIVITY_DOWNGRADE_DAYS: Record<MembershipTier, number> = {
 };
 
 // Get tier based on lifetime spend
-export function getTierFromSpend(lifetimeSpend: number): MembershipTier {
-  if (lifetimeSpend >= TIER_CONFIG.platinum.minSpend) return 'platinum';
-  if (lifetimeSpend >= TIER_CONFIG.gold.minSpend) return 'gold';
-  if (lifetimeSpend >= TIER_CONFIG.silver.minSpend) return 'silver';
+export function getTierFromSpend(
+  lifetimeSpend: number,
+  thresholds: Record<MembershipTier, number> = DEFAULT_TIER_THRESHOLDS,
+): MembershipTier {
+  if (lifetimeSpend >= thresholds.platinum) return 'platinum';
+  if (lifetimeSpend >= thresholds.gold) return 'gold';
+  if (lifetimeSpend >= thresholds.silver) return 'silver';
   return 'bronze';
 }
 
@@ -133,14 +134,17 @@ export function formatTierDisplay(tier: MembershipTier): string {
 }
 
 // Get progress to next tier
-export function getTierProgress(lifetimeSpend: number): {
+export function getTierProgress(
+  lifetimeSpend: number,
+  thresholds: Record<MembershipTier, number> = DEFAULT_TIER_THRESHOLDS,
+): {
   currentTier: MembershipTier;
   nextTier: MembershipTier | null;
   progress: number;
   amountToNextTier: number;
 } {
-  const currentTier = getTierFromSpend(lifetimeSpend);
-  
+  const currentTier = getTierFromSpend(lifetimeSpend, thresholds);
+
   if (currentTier === 'platinum') {
     return {
       currentTier,
@@ -149,21 +153,21 @@ export function getTierProgress(lifetimeSpend: number): {
       amountToNextTier: 0,
     };
   }
-  
+
   const tierOrder: MembershipTier[] = ['bronze', 'silver', 'gold', 'platinum'];
   const currentIndex = tierOrder.indexOf(currentTier);
   const nextTier = tierOrder[currentIndex + 1];
-  
-  const currentMin = TIER_CONFIG[currentTier].minSpend;
-  const nextMin = TIER_CONFIG[nextTier].minSpend;
-  
+
+  const currentMin = thresholds[currentTier];
+  const nextMin = thresholds[nextTier];
+
   const progress = Math.min(
     100,
     Math.round(((lifetimeSpend - currentMin) / (nextMin - currentMin)) * 100)
   );
-  
+
   const amountToNextTier = Math.max(0, nextMin - lifetimeSpend);
-  
+
   return {
     currentTier,
     nextTier,

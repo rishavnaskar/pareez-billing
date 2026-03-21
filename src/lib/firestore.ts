@@ -27,7 +27,7 @@ import {
   shouldDowngradeForInactivity,
   getTierBelow,
 } from "./wallet";
-import { getBranchConfig, getDefaultBranchConfig } from "./branch-config";
+import { getBranchConfig, getDefaultBranchConfig, getBranchTierConfig } from "./branch-config";
 import { cache, CACHE_KEYS } from "./cache";
 
 // Customer operations
@@ -328,6 +328,9 @@ export async function processBillWithWallet(
   walletAmountToUse: number,
   cashbackToEarn: number,
 ): Promise<{ billId: string; updatedWallet: CustomerWallet }> {
+  // Fetch tier config before entering transaction (cannot do Firestore reads outside transaction object)
+  const tierConfig = await getBranchTierConfig(bill.branchId);
+
   return await runTransaction(db, async (transaction) => {
     const customerRef = doc(db, "customers", customerId);
     const customerSnap = await transaction.get(customerRef);
@@ -354,7 +357,7 @@ export async function processBillWithWallet(
       currentWallet.lifetimeRedeemed + walletAmountToUse;
 
     // Check for tier upgrade
-    const newTier = getTierFromSpend(newLifetimeSpend);
+    const newTier = getTierFromSpend(newLifetimeSpend, tierConfig.thresholds);
     const tierChanged = newTier !== currentWallet.tier;
 
     const updatedWallet: CustomerWallet = {
