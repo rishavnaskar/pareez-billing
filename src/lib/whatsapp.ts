@@ -36,9 +36,12 @@ export function shareBillViaWhatsApp(bill: Bill, billId: string): void {
 
   const message = encodeURIComponent(generateWhatsAppMessage(bill, billUrl));
 
-  // Direct WhatsApp to customer's phone number
+  // Direct WhatsApp to customer's phone number (wa.me requires country code)
   if (bill.customerPhone) {
-    const cleanPhone = bill.customerPhone.replace(/[^0-9]/g, '');
+    let cleanPhone = bill.customerPhone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 10) {
+      cleanPhone = '91' + cleanPhone;
+    }
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
   } else {
     // Fallback to general WhatsApp if no phone number
