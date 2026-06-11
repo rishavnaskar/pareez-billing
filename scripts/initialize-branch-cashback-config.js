@@ -5,7 +5,10 @@
  * Uses default rates (same as the app fallback) so behavior is unchanged,
  * but the documents are now explicitly present in Firestore for future editing.
  *
- * Run: node scripts/initialize-branch-cashback-config.js
+ * Configure the branches in .env (gitignored):
+ *   SEED_BRANCHES=branchDocId1:Branch One,branchDocId2:Branch Two
+ *
+ * Run: node --env-file=.env scripts/initialize-branch-cashback-config.js
  */
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -21,11 +24,23 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// ── Your branch IDs (from set-user-claims.js) ─────────────────────────
-const BRANCHES = [
-  { id: 'BRANCH_DOC_ID_1', name: 'Safui Para' },
-  { id: 'BRANCH_DOC_ID_2', name: 'KaliBari' },
-];
+// ── Branches come from env: SEED_BRANCHES="id1:Name One,id2:Name Two" ──
+const BRANCHES = (process.env.SEED_BRANCHES || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((pair) => {
+    const [id, name] = pair.split(':').map((s) => s.trim());
+    return { id, name: name || id };
+  });
+
+if (BRANCHES.length === 0) {
+  console.error(
+    'No branches configured. Set SEED_BRANCHES in .env and run with:\n' +
+    '  node --env-file=.env scripts/initialize-branch-cashback-config.js',
+  );
+  process.exit(1);
+}
 
 // ── Default tier rates ─────────────────────────────────────────────────
 const DEFAULT_TIER_RATES = {
@@ -66,18 +81,16 @@ function buildConfig(branchId) {
   };
 }
 
-// ── Tier thresholds per branch ────────────────────────────────────────
-const TIER_THRESHOLDS = {
-  // Safui Para — default thresholds
-  'BRANCH_DOC_ID_1': { bronze: 0, silver: 5000, gold: 15000, platinum: 30000 },
-  // KaliBari — custom thresholds
-  'BRANCH_DOC_ID_2': { bronze: 0, silver: 12000, gold: 20000, platinum: 30000 },
-};
+// ── Tier thresholds ───────────────────────────────────────────────────
+// Seeds every branch with the defaults; customize per branch afterwards
+// in Firestore (branches/{id}/config/tierConfig) or via
+// scripts/update-safui-para-config.js.
+const DEFAULT_THRESHOLDS = { bronze: 0, silver: 5000, gold: 15000, platinum: 30000 };
 
 function buildTierConfig(branchId) {
   return {
     branchId,
-    thresholds: TIER_THRESHOLDS[branchId],
+    thresholds: { ...DEFAULT_THRESHOLDS },
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 }
