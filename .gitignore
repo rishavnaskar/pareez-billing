@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -43,3 +44,9 @@ next-env.d.ts
 
 # Firebase Admin SDK service account key (IMPORTANT: Keep this secure!)
 scripts/serviceAccountKey.json
+
+# Firebase emulator data exports (may contain real customer data)
+.firebase-data/
+
+# Firebase CLI debug logs
+firebase-debug.log*

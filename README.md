@@ -257,9 +257,14 @@ NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST=localhost:8080
    Note down the branch IDs printed to the console.
 
 6. **Create users and assign roles:**
-   First create users in Firebase Console > Authentication > Add User, then edit `scripts/set-user-claims.js` with their emails and branch IDs:
+   First create users in Firebase Console > Authentication > Add User, then configure their emails and branch IDs in `.env` (see `.env.example`):
    ```bash
-   node scripts/set-user-claims.js
+   # .env
+   ADMIN_EMAILS=admin@example.com
+   BRANCH_USER_CLAIMS=user1@example.com:branchDocId1,user2@example.com:branchDocId2
+   ```
+   ```bash
+   node --env-file=.env scripts/set-user-claims.js
    ```
 
 ### Running Locally

@@ -20,26 +20,17 @@ This directory contains administrative scripts for managing your Firebase applic
 
 ### Usage
 
-1. Edit `set-user-claims.js` and uncomment the examples in the `main()` function
-2. Replace the example emails and branch IDs with your actual values
-3. Run the script:
+1. Configure the users in your `.env` file (gitignored — never commit real emails):
    ```bash
-   node scripts/set-user-claims.js
+   # Comma-separated admin emails (universal access to all branches)
+   ADMIN_EMAILS=admin@example.com
+   # Comma-separated email:branchId pairs for branch-scoped users
+   BRANCH_USER_CLAIMS=user1@example.com:branchDocId1,user2@example.com:branchDocId2
    ```
-
-### Examples
-
-**Set an admin user (universal access to all branches):**
-
-```javascript
-await setUserClaims("admin@pareez.com", "admin");
-```
-
-**Set a regular user with branch-specific access:**
-
-```javascript
-await setUserClaims("branch1@pareez.com", "user", "branch-id-from-firestore");
-```
+2. Run the script:
+   ```bash
+   node --env-file=.env scripts/set-user-claims.js
+   ```
 
 ### Getting Branch IDs
 
