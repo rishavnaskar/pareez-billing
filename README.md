@@ -4,8 +4,29 @@ A full-featured billing and customer loyalty system built for **Pareez Unisex Pr
 
 ---
 
+## Screenshots
+
+**Creating a bill** — live receipt preview, branch selection, and customer search:
+
+![Create New Bill](docs/screenshots/new-bill.png)
+
+| Wallet & rewards at checkout | Shareable receipt page (QR / WhatsApp link) |
+| :---: | :---: |
+| ![Wallet & Rewards](docs/screenshots/wallet-rewards.png) | ![Shareable Receipt](docs/screenshots/shareable-receipt.png) |
+
+| Customer management with tiers & wallets | Bill history with day-wise totals |
+| :---: | :---: |
+| ![Customers](docs/screenshots/customers.png) | ![Bill History](docs/screenshots/bill-history.png) |
+
+**Bill preview dialog** — download PDF, share to WhatsApp, or show the QR code:
+
+![Bill Preview](docs/screenshots/bill-preview.png)
+
+---
+
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
