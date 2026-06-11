@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { maskPhoneNumber } from '@/lib/phone-mask';
+import { maskPhoneForRole } from '@/lib/phone-mask';
 import {
     Table,
     TableBody,
@@ -12,10 +12,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { getAllBills } from '@/lib/firestore';
-import { getBranches } from '@/lib/branches';
+import { getAllBills } from '@/lib/db';
+import { getBranches } from '@/lib/db';
 import { Bill, Branch } from '@/lib/types';
-import { BillPreview } from './BillPreview';
+import { BillPreviewDialog } from './BillPreviewDialog';
 import { Receipt, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,10 +65,15 @@ export function BillHistory() {
         return branchFilter && dateFilter;
     });
 
-    const daySections = filteredBills.reduce<Record<string, { bills: Bill[]; totals: { overall: number; cash: number; card: number; upi: number } }>>((acc, bill) => {
-        const key = format(new Date(bill.createdAt), 'dd MMM yyyy');
+    const daySections = filteredBills.reduce<Record<string, { dayStart: number; bills: Bill[]; totals: { overall: number; cash: number; card: number; upi: number } }>>((acc, bill) => {
+        const billDate = new Date(bill.createdAt);
+        const key = format(billDate, 'dd MMM yyyy');
         if (!acc[key]) {
-            acc[key] = { bills: [], totals: { overall: 0, cash: 0, card: 0, upi: 0 } };
+            acc[key] = {
+                dayStart: new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate()).getTime(),
+                bills: [],
+                totals: { overall: 0, cash: 0, card: 0, upi: 0 },
+            };
         }
         acc[key].bills.push(bill);
         acc[key].totals.overall += bill.totalAmount;
@@ -77,12 +82,14 @@ export function BillHistory() {
     }, {});
 
     const daySectionsList = Object.entries(daySections)
-        .map(([day, data]) => ({ day, ...data }))
-        .sort((a, b) => {
-            const da = new Date(a.day);
-            const db = new Date(b.day);
-            return db.getTime() - da.getTime();
-        });
+        .map(([day, data]) => ({
+            day,
+            ...data,
+            bills: [...data.bills].sort(
+                (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+            ),
+        }))
+        .sort((a, b) => b.dayStart - a.dayStart);
 
     const fetchData = useCallback(async () => {
         try {
@@ -104,7 +111,7 @@ export function BillHistory() {
 
     useEffect(() => {
         fetchData();
-    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [fetchData]);
 
     return (
         <Card>
@@ -241,10 +248,8 @@ export function BillHistory() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {bills
-                                                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                                                .map((bill) => (
-                                                    <BillPreview key={bill.id} bill={bill}>
+                                            {bills.map((bill) => (
+                                                    <BillPreviewDialog key={bill.id} bill={bill}>
                                                         <TableRow className="cursor-pointer hover:bg-gray-50">
                                                             <TableCell className="font-mono text-xs sm:text-sm min-w-[100px]">
                                                                 {bill.billNumber}
@@ -253,9 +258,7 @@ export function BillHistory() {
                                                                 <div>
                                                                     <div className="font-medium text-xs sm:text-sm">{bill.customerName}</div>
                                                                     <div className="text-xs text-gray-500">
-                                                                        {bill.customerPhone
-                                                                            ? (user?.role === 'admin' ? bill.customerPhone : maskPhoneNumber(bill.customerPhone))
-                                                                            : 'N/A'}
+                                                                        {maskPhoneForRole(bill.customerPhone, user?.role) || 'N/A'}
                                                                     </div>
                                                                 </div>
                                                             </TableCell>
@@ -280,7 +283,7 @@ export function BillHistory() {
                                                                 {formatINR(bill.totalAmount)}
                                                             </TableCell>
                                                         </TableRow>
-                                                    </BillPreview>
+                                                    </BillPreviewDialog>
                                                 ))}
                                         </TableBody>
                                     </Table>

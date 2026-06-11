@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Logo } from '@/components/Logo';
+import { Logo } from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
-import { CustomerList } from '@/components/CustomerList';
-import { BillForm } from '@/components/BillForm';
-import { BillHistory } from '@/components/BillHistory';
-import { NewBillFAB } from '@/components/NewBillFAB';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { CustomerList } from '@/components/customers/CustomerList';
+import { BillForm } from '@/components/billing/BillForm';
+import { BillHistory } from '@/components/billing/BillHistory';
+import { NewBillFAB } from '@/components/billing/NewBillFAB';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Users, FileText, Receipt, LogOut } from 'lucide-react';
 
@@ -15,13 +15,12 @@ type Tab = 'billing' | 'customers' | 'history';
 
 function AuthenticatedContent() {
   const [activeTab, setActiveTab] = useState<Tab>('billing');
+  const [billFormResetSignal, setBillFormResetSignal] = useState(0);
   const { logout } = useAuth();
 
   const handleNewBill = () => {
-    // Navigate to billing tab and reset form
     setActiveTab('billing');
-    // Trigger form reset by forcing a re-render
-    window.dispatchEvent(new CustomEvent('resetBillForm'));
+    setBillFormResetSignal((prev) => prev + 1);
   };
 
   return (
@@ -80,7 +79,7 @@ function AuthenticatedContent() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-2 py-4 sm:px-4 sm:py-6 lg:px-8 lg:py-8">
-        {activeTab === 'billing' && <BillForm />}
+        {activeTab === 'billing' && <BillForm resetSignal={billFormResetSignal} />}
         {activeTab === 'customers' && <CustomerList />}
         {activeTab === 'history' && <BillHistory />}
       </main>

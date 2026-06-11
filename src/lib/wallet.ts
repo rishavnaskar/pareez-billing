@@ -130,12 +130,6 @@ export function createInitialWallet(welcomeBonus: number): CustomerWallet {
   };
 }
 
-// Format tier display with emoji
-export function formatTierDisplay(tier: MembershipTier): string {
-  const config = TIER_CONFIG[tier];
-  return `${config.emoji} ${config.name}`;
-}
-
 // Get progress to next tier
 export function getTierProgress(
   lifetimeSpend: number,
@@ -177,17 +171,4 @@ export function getTierProgress(
     progress,
     amountToNextTier,
   };
-}
-
-// Get days until potential downgrade
-export function getDaysUntilDowngrade(wallet: CustomerWallet): number | null {
-  if (wallet.tier === 'bronze') return null;
-  
-  const daysSinceActivity = Math.floor(
-    (Date.now() - new Date(wallet.lastActivityAt).getTime()) / (1000 * 60 * 60 * 24)
-  );
-  
-  const daysUntilDowngrade = INACTIVITY_DOWNGRADE_DAYS[wallet.tier] - daysSinceActivity;
-  
-  return daysUntilDowngrade > 0 ? daysUntilDowngrade : 0;
 }

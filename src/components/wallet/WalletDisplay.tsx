@@ -15,7 +15,6 @@ interface WalletDisplayProps {
 
 export function WalletDisplay({ wallet, compact = false, cashbackRate, maxRedemptionRate }: WalletDisplayProps) {
   const tierProgress = getTierProgress(wallet.lifetimeSpend);
-  const config = TIER_CONFIG[wallet.tier];
 
   if (compact) {
     return (

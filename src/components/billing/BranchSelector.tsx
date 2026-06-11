@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { getBranches } from '@/lib/branches';
+import { getBranches } from '@/lib/db';
 import { Branch } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -17,25 +17,37 @@ export function BranchSelector({ selectedBranchId, onBranchChange }: BranchSelec
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
 
+    // Fetch the branch list once
     useEffect(() => {
-        const fetchBranches = async () => {
-            try {
-                const data = await getBranches();
-                setBranches(data);
-
-                if (user?.role === 'user' && user.branchId) {
-                    onBranchChange(user.branchId);
-                } else if (data.length > 0 && !selectedBranchId) {
-                    onBranchChange(data[0].id);
-                }
-            } catch (error) {
+        let active = true;
+        getBranches()
+            .then((data) => {
+                if (active) setBranches(data);
+            })
+            .catch((error) => {
                 console.error('Error fetching branches:', error);
-            } finally {
-                setLoading(false);
-            }
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+        return () => {
+            active = false;
         };
-        fetchBranches();
-    }, [user, onBranchChange, selectedBranchId]);
+    }, []);
+
+    // Apply default selection: branch users are locked to their branch,
+    // admins default to the first branch when nothing is selected yet
+    useEffect(() => {
+        if (loading) return;
+
+        if (user?.role === 'user' && user.branchId) {
+            if (selectedBranchId !== user.branchId) {
+                onBranchChange(user.branchId);
+            }
+        } else if (!selectedBranchId && branches.length > 0) {
+            onBranchChange(branches[0].id);
+        }
+    }, [loading, branches, user, selectedBranchId, onBranchChange]);
 
     if (loading) {
         return <div className="text-sm text-gray-500">Loading branches...</div>;

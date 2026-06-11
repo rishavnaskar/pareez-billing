@@ -25,5 +25,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if request.auth != null;
     }
+
+    // Bill number counters (per branch, per day) - authenticated read/write
+    match /counters/{counterId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }

@@ -11,13 +11,13 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { addCustomer, updateCustomer, checkDuplicateCustomer } from '@/lib/firestore';
+import { addCustomer, updateCustomer, checkDuplicateCustomer } from '@/lib/db';
 import { getPhoneValidationError } from '@/lib/validation';
 import { UserPlus, X } from 'lucide-react';
 import { Customer } from '@/lib/types';
 
 interface CustomerFormProps {
-    onSuccess: (customer: { name: string; phone?: string; dateOfBirth?: string }) => void;
+    onSuccess: (customer: { id: string; name: string; phone?: string; dateOfBirth?: string }) => void;
     editingCustomer?: Customer | null;
     setEditingCustomer?: (customer: Customer | null) => void;
     branchId?: string;
@@ -67,7 +67,7 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer, b
 
             // Check for duplicate customer by phone only when provided (new customers only)
             if (!editingCustomer && formData.phone.trim()) {
-                const isDuplicate = await checkDuplicateCustomer(formData.name, formData.phone);
+                const isDuplicate = await checkDuplicateCustomer(formData.phone);
                 if (isDuplicate) {
                     alert('A customer with this phone number already exists. Please use a different phone number.');
                     setLoading(false);
@@ -75,20 +75,22 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer, b
                 }
             }
 
+            let customerId: string;
             if (editingCustomer) {
                 // Update existing customer
-                await updateCustomer(editingCustomer.id, formData);
+                customerId = editingCustomer.id;
+                await updateCustomer(customerId, formData);
                 // Reset editing state
                 setEditingCustomer?.(null);
             } else {
                 // Create new customer
-                await addCustomer(formData, branchId);
+                customerId = await addCustomer(formData, branchId);
             }
 
             setOpen(false);
             setFormData({ name: '', phone: '', dateOfBirth: '' });
             setPhoneError(null);
-            onSuccess(formData);
+            onSuccess({ id: customerId, ...formData });
         } catch (error) {
             console.error('Error saving customer:', error);
             alert('Failed to save customer. Please check your Firebase configuration.');

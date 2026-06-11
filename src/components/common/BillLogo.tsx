@@ -23,9 +23,6 @@ export function BillLogo() {
             height={140}
             className="h-16 object-contain"
             onError={() => setImgError(true)}
-            onLoad={() => {
-                // Image loaded successfully
-            }}
         />
     );
 }

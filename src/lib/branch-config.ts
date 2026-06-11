@@ -9,7 +9,8 @@ import {
   BranchCashbackConfig,
   ResolvedRates,
 } from "./types";
-import { cache, CACHE_KEYS } from "./cache";
+import { DEFAULT_TIER_THRESHOLDS } from "./wallet";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidate } from "./cache";
 
 // Default tier rates (matching current values)
 const DEFAULT_TIER_RATES: Record<MembershipTier, TierRates> = {
@@ -43,7 +44,6 @@ export function getDefaultBranchConfig(branchId: string): BranchCashbackConfig {
 export async function getBranchConfig(
   branchId: string
 ): Promise<BranchCashbackConfig> {
-  // Check cache
   const cacheKey = CACHE_KEYS.BRANCH_CONFIG(branchId);
   const cached = cache.get<BranchCashbackConfig>(cacheKey);
   if (cached) return cached;
@@ -63,7 +63,7 @@ export async function getBranchConfig(
         dayConfig: data.dayConfig ?? DEFAULT_DAY_CONFIG,
         updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
       };
-      cache.set(cacheKey, config, 5 * 60 * 1000);
+      cache.set(cacheKey, config, CACHE_TTL.CONFIG);
       return config;
     }
   } catch (error) {
@@ -72,7 +72,7 @@ export async function getBranchConfig(
 
   // Fall back to defaults
   const defaults = getDefaultBranchConfig(branchId);
-  cache.set(cacheKey, defaults, 5 * 60 * 1000);
+  cache.set(cacheKey, defaults, CACHE_TTL.CONFIG);
   return defaults;
 }
 
@@ -91,16 +91,11 @@ export async function saveBranchConfig(
     updatedAt: Timestamp.now(),
   });
 
-  // Invalidate cache
-  const cacheKey = CACHE_KEYS.BRANCH_CONFIG(config.branchId);
-  cache.set(cacheKey, null, 0); // expire immediately
+  invalidate.branchConfig(config.branchId);
 }
 
 function getDayOfWeek(): DayOfWeek {
-  const days: DayOfWeek[] = [
-    "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
-  ];
-  return days[new Date().getDay()];
+  return ALL_DAYS[new Date().getDay()];
 }
 
 export function resolveRates(
@@ -142,17 +137,10 @@ export async function resolveAllRates(
 
 // ── Tier Config (separate Firestore doc: branches/{id}/config/tierConfig) ──
 
-const DEFAULT_THRESHOLDS: Record<MembershipTier, number> = {
-  bronze: 0,
-  silver: 5000,
-  gold: 15000,
-  platinum: 30000,
-};
-
 export function getDefaultTierConfig(branchId: string): TierConfig {
   return {
     branchId,
-    thresholds: { ...DEFAULT_THRESHOLDS },
+    thresholds: { ...DEFAULT_TIER_THRESHOLDS },
     updatedAt: new Date(),
   };
 }
@@ -172,10 +160,10 @@ export async function getBranchTierConfig(
       const data = docSnap.data();
       const config: TierConfig = {
         branchId: data.branchId || branchId,
-        thresholds: data.thresholds ?? DEFAULT_THRESHOLDS,
+        thresholds: data.thresholds ?? DEFAULT_TIER_THRESHOLDS,
         updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
       };
-      cache.set(cacheKey, config, 5 * 60 * 1000);
+      cache.set(cacheKey, config, CACHE_TTL.CONFIG);
       return config;
     }
   } catch (error) {
@@ -183,6 +171,6 @@ export async function getBranchTierConfig(
   }
 
   const defaults = getDefaultTierConfig(branchId);
-  cache.set(cacheKey, defaults, 5 * 60 * 1000);
+  cache.set(cacheKey, defaults, CACHE_TTL.CONFIG);
   return defaults;
 }

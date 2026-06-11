@@ -124,7 +124,8 @@ export interface Bill {
 
 export type UserRole = "admin" | "user";
 
-export interface UserProfile {
+// Authenticated user with role/branch resolved from Firebase custom claims
+export interface AuthUser {
   uid: string;
   email: string;
   displayName?: string;

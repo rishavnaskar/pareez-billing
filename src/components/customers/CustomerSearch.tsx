@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,17 +18,16 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Customer } from '@/lib/types';
-import { getCustomers } from '@/lib/firestore';
-import { maskPhoneNumber } from '@/lib/phone-mask';
+import { getCustomers } from '@/lib/db';
+import { maskPhoneForRole } from '@/lib/phone-mask';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CustomerSearchProps {
     onSelect: (customer: Customer | null) => void;
     selectedCustomer: Customer | null;
-    refreshKey?: number;
 }
 
-export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: CustomerSearchProps) {
+export function CustomerSearch({ onSelect, selectedCustomer }: CustomerSearchProps) {
     const { user } = useAuth();
     const [open, setOpen] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -67,7 +66,7 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
         return () => {
             isMounted = false;
         };
-    }, [refreshKey]);
+    }, []);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -81,7 +80,7 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                     {selectedCustomer ? (
                         <span>
                             {selectedCustomer.name}
-                            {selectedCustomer.phone ? ` - ${user?.role === 'admin' ? selectedCustomer.phone : maskPhoneNumber(selectedCustomer.phone)}` : ''}
+                            {selectedCustomer.phone ? ` - ${maskPhoneForRole(selectedCustomer.phone, user?.role)}` : ''}
                         </span>
                     ) : (
                         <span className="text-muted-foreground">
@@ -117,9 +116,7 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
                                     <div className="flex flex-col">
                                         <span className="font-medium">{customer.name}</span>
                                         <span className="text-sm text-muted-foreground">
-                                            {customer.phone
-                                                ? (user?.role === 'admin' ? customer.phone : maskPhoneNumber(customer.phone))
-                                                : 'No phone'}
+                                            {maskPhoneForRole(customer.phone, user?.role) || 'No phone'}
                                         </span>
                                     </div>
                                 </CommandItem>
@@ -132,4 +129,3 @@ export function CustomerSearch({ onSelect, selectedCustomer, refreshKey }: Custo
     );
 }
 
-export const CustomerSearchMemo = memo(CustomerSearch);

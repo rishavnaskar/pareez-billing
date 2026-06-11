@@ -13,7 +13,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { adjustWalletBalance } from "@/lib/firestore";
+import { adjustWalletBalance } from "@/lib/db";
 import { Customer } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Wallet, Plus, Minus } from "lucide-react";

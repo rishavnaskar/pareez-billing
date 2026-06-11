@@ -32,13 +32,6 @@ export function BillQRCode({ billId, billNumber, bill, autoOpen = false }: BillQ
         }
     }, [open, billId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Reset auto-open after closing
-    useEffect(() => {
-        if (!open && autoOpen) {
-            setOpen(false);
-        }
-    }, [open, autoOpen]);
-
     const generateQRCode = async () => {
         try {
             setLoading(true);

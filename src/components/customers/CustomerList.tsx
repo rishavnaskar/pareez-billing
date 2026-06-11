@@ -12,17 +12,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CustomerForm } from "./CustomerForm";
-import { getCustomers, deleteCustomer } from "@/lib/firestore";
+import { getCustomers, deleteCustomer } from "@/lib/db";
 import { Customer } from "@/lib/types";
 import { Search, Users, Edit, Trash2, RefreshCw, Wallet } from "lucide-react";
 import { format } from "date-fns";
-import { maskPhoneNumber } from "@/lib/phone-mask";
+import { maskPhoneForRole } from "@/lib/phone-mask";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { TierBadge } from "./TierBadge";
+import { TierBadge } from "@/components/wallet/TierBadge";
 import { formatINR } from "@/lib/currency";
-import { WalletAdjustmentDialog } from "./WalletAdjustmentDialog";
-import { WalletTransactionHistory } from "./WalletTransactionHistory";
+import { WalletAdjustmentDialog } from "@/components/wallet/WalletAdjustmentDialog";
+import { WalletTransactionHistory } from "@/components/wallet/WalletTransactionHistory";
 
 export function CustomerList() {
   const { user } = useAuth();
@@ -171,11 +171,7 @@ export function CustomerList() {
                         )}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm min-w-[150px]">
-                        {customer.phone
-                          ? user?.role === "admin"
-                            ? customer.phone
-                            : maskPhoneNumber(customer.phone)
-                          : "—"}
+                        {maskPhoneForRole(customer.phone, user?.role) || "—"}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm min-w-[120px]">
                         {customer.dateOfBirth

@@ -1,22 +1,22 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getStoredUser, isAuthenticated, clearStoredAuth, logoutUser } from '@/lib/auth';
-
-import { UserRole } from '@/lib/types';
-
-interface AuthUser {
-    uid: string;
-    email: string;
-    displayName?: string;
-    role: UserRole;
-    branchId?: string;
-}
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+    ReactNode,
+} from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { buildAuthUser, logoutUser } from '@/lib/auth';
+import { AuthUser } from '@/lib/types';
 
 interface AuthContextType {
     user: AuthUser | null;
     login: (user: AuthUser) => void;
-    logout: () => void;
+    logout: () => Promise<void>;
     isLoading: boolean;
 }
 
@@ -38,36 +38,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Subscribe to the Firebase session so UI state can never drift from
+    // the actual auth state (e.g. expired or revoked sessions).
     useEffect(() => {
-        // Check if user is already authenticated
-        const checkAuth = () => {
-            if (isAuthenticated()) {
-                const storedUser = getStoredUser();
-                if (storedUser) {
-                    setUser(storedUser);
-                }
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            try {
+                setUser(firebaseUser ? await buildAuthUser(firebaseUser) : null);
+            } catch (error) {
+                console.error('Failed to resolve auth user:', error);
+                setUser(null);
+            } finally {
+                setIsLoading(false);
             }
-            setIsLoading(false);
-        };
+        });
 
-        checkAuth();
+        return unsubscribe;
     }, []);
 
-    const login = (userData: AuthUser) => {
+    const login = useCallback((userData: AuthUser) => {
         setUser(userData);
-    };
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         try {
             await logoutUser();
-            setUser(null);
         } catch (error) {
             console.error('Logout error:', error);
-            // Even if logout fails, clear local state
-            clearStoredAuth();
+        } finally {
+            // Clear local state even if sign-out fails
             setUser(null);
         }
-    };
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, login, logout, isLoading }}>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getWalletTransactions } from '@/lib/firestore';
+import { getWalletTransactions } from '@/lib/db';
 import { WalletTransaction, Customer } from '@/lib/types';
 import { formatINR } from '@/lib/currency';
 import { format } from 'date-fns';
@@ -26,22 +26,26 @@ export function WalletTransactionHistory({ customer }: WalletTransactionHistoryP
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
-        if (open) {
-            fetchTransactions();
-        }
-    }, [open, customer.id]);
+        if (!open) return;
 
-    const fetchTransactions = async () => {
-        setLoading(true);
-        try {
-            const data = await getWalletTransactions(customer.id, 50);
-            setTransactions(data);
-        } catch (error) {
-            console.error('Error fetching transactions:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        let active = true;
+        const fetchTransactions = async () => {
+            setLoading(true);
+            try {
+                const data = await getWalletTransactions(customer.id, 50);
+                if (active) setTransactions(data);
+            } catch (error) {
+                console.error('Error fetching transactions:', error);
+            } finally {
+                if (active) setLoading(false);
+            }
+        };
+
+        fetchTransactions();
+        return () => {
+            active = false;
+        };
+    }, [open, customer.id]);
 
     const getTransactionIcon = (type: WalletTransaction['type']) => {
         switch (type) {

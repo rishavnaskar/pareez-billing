@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getBillById } from "@/lib/firestore";
+import { getBillById } from "@/lib/db";
 import { Bill, ServiceItem, MembershipTier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download } from "lucide-react";
+import { Download, Wallet, Gift } from "lucide-react";
 import { generateBillPDF } from "@/lib/pdf-generator";
 import { maskPhoneNumber } from "@/lib/phone-mask";
 import { formatINR } from "@/lib/currency";
 import Image from "next/image";
 import { TIER_CONFIG } from "@/lib/wallet";
-import { Wallet, Gift } from "lucide-react";
+import { TierBadge } from "@/components/wallet/TierBadge";
 
 export default function BillPreviewPage() {
   const params = useParams();
@@ -347,17 +347,8 @@ export default function BillPreviewPage() {
               <Gift className="h-6 w-6 text-orange-600" />
               <h3 className="text-lg font-bold text-gray-900">Your Rewards</h3>
               {bill.customerTierAtPurchase && (
-                <span
-                  className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium ${TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.bgColor} ${TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.color} border ${TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.borderColor}`}
-                >
-                  {
-                    TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]
-                      ?.emoji
-                  }{" "}
-                  {
-                    TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]
-                      ?.name
-                  }
+                <span className="ml-auto">
+                  <TierBadge tier={bill.customerTierAtPurchase} size="md" />
                 </span>
               )}
             </div>
