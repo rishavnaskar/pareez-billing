@@ -229,29 +229,34 @@ function ServiceFormFields({
               />
             </PopoverAnchor>
             <PopoverContent
-              className="p-0 w-[--radix-popover-trigger-width] max-h-56 overflow-y-auto rounded-md border border-gray-200 shadow-lg"
+              className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
               onOpenAutoFocus={(e) => e.preventDefault()}
               align="start"
-              sideOffset={4}
+              sideOffset={6}
             >
-              {Array.from(grouped.entries()).map(([section, items]) => (
+              {Array.from(grouped.entries()).map(([section, items], gi) => (
                 <div key={section}>
-                  <div className="sticky top-0 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-600 bg-orange-50 border-b border-orange-100">
-                    {section}
+                  <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100 ${gi > 0 ? "border-t border-gray-100" : ""}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                      {section}
+                    </span>
+                    <span className="text-[10px] text-gray-400">{items.length}</span>
                   </div>
                   {items.map((p) => (
                     <button
                       key={p.id}
                       type="button"
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 active:bg-orange-100 transition-colors border-b border-gray-50 last:border-0"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         selectSuggestion(p);
                       }}
                     >
-                      <span className="text-gray-800">{p.name}</span>
-                      <span className="text-gray-400 ml-3 shrink-0">
-                        ₹{p.price}
+                      <span className="flex-1 min-w-0 text-[13px] text-gray-800 leading-snug truncate">
+                        {p.name}
+                      </span>
+                      <span className="shrink-0 text-[12px] font-semibold text-orange-500 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">
+                        ₹{p.price.toLocaleString("en-IN")}
                       </span>
                     </button>
                   ))}
