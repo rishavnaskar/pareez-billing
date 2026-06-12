@@ -15,12 +15,12 @@ type Tab = 'billing' | 'customers' | 'history';
 
 function AuthenticatedContent() {
   const [activeTab, setActiveTab] = useState<Tab>('billing');
-  const [billFormResetSignal, setBillFormResetSignal] = useState(0);
   const { logout } = useAuth();
 
+  // A full reload guarantees a clean slate for the next bill (fresh bill
+  // number, no stale form state) and lands on the default billing tab.
   const handleNewBill = () => {
-    setActiveTab('billing');
-    setBillFormResetSignal((prev) => prev + 1);
+    window.location.reload();
   };
 
   return (
@@ -78,21 +78,25 @@ function AuthenticatedContent() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-2 py-4 sm:px-4 sm:py-6 lg:px-8 lg:py-8">
-        {activeTab === 'billing' && <BillForm resetSignal={billFormResetSignal} />}
+      {/* pb-28 keeps the floating New Bill button clear of the last content row */}
+      <main className="mx-auto max-w-7xl px-2 pt-4 pb-28 sm:px-4 sm:pt-6 lg:px-8 lg:pt-8">
+        {activeTab === 'billing' && <BillForm />}
         {activeTab === 'customers' && <CustomerList />}
         {activeTab === 'history' && <BillHistory />}
       </main>
 
       {/* Footer */}
-      <footer className="absolute bottom-0 left-0 right-0 border-t bg-white py-3 sm:py-4">
+      <footer
+        className="absolute bottom-0 left-0 right-0 border-t bg-white py-3 sm:py-4"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <div className="mx-auto max-w-7xl px-2 text-center text-xs sm:text-sm text-gray-500">
           &copy; {new Date().getFullYear()} Pareez Salon
         </div>
       </footer>
 
       {/* Floating Action Button */}
-      <NewBillFAB onNewBill={handleNewBill} isActive={activeTab === 'billing'} />
+      <NewBillFAB onNewBill={handleNewBill} />
     </div>
   );
 }

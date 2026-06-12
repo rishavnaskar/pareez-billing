@@ -123,7 +123,7 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer, b
                 <DialogTrigger asChild>
                     <Button className="bg-orange-500 hover:bg-orange-600">
                         <UserPlus className="mr-2 h-4 w-4" />
-                        Add Customer
+                        Add New Customer
                     </Button>
                 </DialogTrigger>
             )}
@@ -189,7 +189,7 @@ export function CustomerForm({ onSuccess, editingCustomer, setEditingCustomer, b
                         className="w-full bg-orange-500 hover:bg-orange-600"
                         disabled={loading}
                     >
-                        {loading ? 'Saving...' : (editingCustomer ? 'Update Customer' : 'Add Customer')}
+                        {loading ? 'Saving...' : (editingCustomer ? 'Update Customer' : 'Add New Customer')}
                     </Button>
                 </form>
             </DialogContent>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { QrCode, Download, Share2 } from 'lucide-react';
+import { QrCode, Download, Share2, Plus } from 'lucide-react';
 import Image from 'next/image';
 import { Bill } from '@/lib/types';
 import { shareBillViaWhatsApp } from '@/lib/whatsapp';
@@ -14,9 +14,11 @@ interface BillQRCodeProps {
     billNumber: string;
     bill?: Bill;
     autoOpen?: boolean;
+    // When provided, the dialog shows a prominent "Start New Bill" action
+    onNewBill?: () => void;
 }
 
-export function BillQRCode({ billId, billNumber, bill, autoOpen = false }: BillQRCodeProps) {
+export function BillQRCode({ billId, billNumber, bill, autoOpen = false, onNewBill }: BillQRCodeProps) {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(autoOpen);
@@ -134,6 +136,16 @@ export function BillQRCode({ billId, billNumber, bill, autoOpen = false }: BillQ
                             Share to WhatsApp
                         </Button>
                     </div>
+
+                    {onNewBill && (
+                        <Button
+                            onClick={onNewBill}
+                            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-orange-400"
+                        >
+                            <Plus className="h-5 w-5 mr-2" />
+                            Start New Bill
+                        </Button>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

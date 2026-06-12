@@ -46,6 +46,47 @@ function DialogOverlay({
   )
 }
 
+// Tracks the on-screen viewport height (which shrinks when the mobile
+// keyboard opens, unlike 100dvh on iOS) so dialogs can cap their height to
+// the visible area and scroll internally instead of hiding fields behind
+// the keyboard. Ref-counted: several DialogContents can be mounted at once,
+// so the single listener/CSS variable lives until the last one unmounts.
+let visualViewportSubscribers = 0
+let removeVisualViewportListener: (() => void) | null = null
+
+function useVisualViewportHeight() {
+  React.useEffect(() => {
+    const visualViewport = window.visualViewport
+    if (!visualViewport) return
+
+    if (visualViewportSubscribers === 0) {
+      const update = () => {
+        document.documentElement.style.setProperty(
+          "--visual-viewport-height",
+          `${visualViewport.height}px`
+        )
+      }
+      update()
+      visualViewport.addEventListener("resize", update)
+      removeVisualViewportListener = () => {
+        visualViewport.removeEventListener("resize", update)
+        document.documentElement.style.removeProperty(
+          "--visual-viewport-height"
+        )
+      }
+    }
+    visualViewportSubscribers++
+
+    return () => {
+      visualViewportSubscribers--
+      if (visualViewportSubscribers === 0) {
+        removeVisualViewportListener?.()
+        removeVisualViewportListener = null
+      }
+    }
+  }, [])
+}
+
 function DialogContent({
   className,
   children,
@@ -54,13 +95,18 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  useVisualViewportHeight()
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg",
+          // Anchored near the top on mobile (centered dialogs end up behind
+          // the keyboard) and capped to the visible viewport so the content
+          // scrolls to reach fields the keyboard would otherwise cover.
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-4 left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:top-[50%] sm:max-w-lg sm:translate-y-[-50%] max-h-[calc(var(--visual-viewport-height,100dvh)_-_2rem)] overflow-y-auto overscroll-contain",
           className
         )}
         {...props}
