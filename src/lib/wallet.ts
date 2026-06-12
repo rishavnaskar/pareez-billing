@@ -121,6 +121,7 @@ export function createInitialWallet(welcomeBonus: number): CustomerWallet {
   const now = new Date();
   return {
     balance: welcomeBonus,
+    depositBalance: 0,
     lifetimeSpend: 0,
     lifetimeEarned: welcomeBonus,
     lifetimeRedeemed: 0,

@@ -26,6 +26,8 @@ export function walletFromData(
   };
   return {
     ...wallet,
+    // Customers created before the deposit feature have no depositBalance
+    depositBalance: wallet.depositBalance ?? 0,
     tierUpdatedAt: toDate(wallet.tierUpdatedAt),
     lastActivityAt: toDate(wallet.lastActivityAt),
   };

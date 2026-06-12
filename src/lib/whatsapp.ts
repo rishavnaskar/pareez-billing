@@ -8,10 +8,25 @@ import { formatINR } from './currency';
  * @returns Formatted WhatsApp message string
  */
 export function generateWhatsAppMessage(bill: Bill, billUrl: string): string {
+  const depositUsed = bill.depositAmountUsed ?? 0;
+  const amountLines =
+    bill.walletAmountUsed > 0 || depositUsed > 0
+      ? [
+          `Total Amount: ${formatINR(bill.totalAmount)}`,
+          ...(depositUsed > 0
+            ? [`Deposit Adjusted: ${formatINR(-depositUsed)}`]
+            : []),
+          ...(bill.walletAmountUsed > 0
+            ? [`Wallet Redeemed: ${formatINR(-bill.walletAmountUsed)}`]
+            : []),
+          `Amount Paid: ${formatINR(bill.netPayableAmount)}`,
+        ]
+      : [`Total Amount: ${formatINR(bill.totalAmount)}`];
+
   return `Bill from Pareez Unisex Professional Salon
 Bill No: ${bill.billNumber}
 Customer: ${bill.customerName}
-Total Amount: ${formatINR(bill.totalAmount)}
+${amountLines.join("\n")}
 
 View your bill online: ${billUrl}
 

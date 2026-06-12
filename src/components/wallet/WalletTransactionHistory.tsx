@@ -14,7 +14,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { History, ArrowUpCircle, ArrowDownCircle, Gift, AlertTriangle, Settings } from 'lucide-react';
+import { History, ArrowUpCircle, ArrowDownCircle, Banknote, Gift, AlertTriangle, Settings } from 'lucide-react';
 
 interface WalletTransactionHistoryProps {
     customer: Customer;
@@ -57,6 +57,10 @@ export function WalletTransactionHistory({ customer }: WalletTransactionHistoryP
                 return <Gift className="h-4 w-4 text-purple-600" />;
             case 'adjustment':
                 return <Settings className="h-4 w-4 text-blue-600" />;
+            case 'deposit':
+                return <Banknote className="h-4 w-4 text-green-600" />;
+            case 'deposit_redemption':
+                return <Banknote className="h-4 w-4 text-red-600" />;
             case 'tier_downgrade':
                 return <AlertTriangle className="h-4 w-4 text-orange-600" />;
             default:
@@ -80,6 +84,10 @@ export function WalletTransactionHistory({ customer }: WalletTransactionHistoryP
                 return 'Welcome Bonus';
             case 'adjustment':
                 return 'Adjustment';
+            case 'deposit':
+                return 'Deposit';
+            case 'deposit_redemption':
+                return 'Deposit Used';
             case 'tier_downgrade':
                 return 'Tier Change';
             default:
@@ -116,6 +124,12 @@ export function WalletTransactionHistory({ customer }: WalletTransactionHistoryP
                             <p className="text-gray-500">Lifetime Earned</p>
                             <p className="font-bold text-green-600">{formatINR(customer.wallet.lifetimeEarned)}</p>
                         </div>
+                        {customer.wallet.depositBalance > 0 && (
+                            <div>
+                                <p className="text-gray-500">Deposit Balance</p>
+                                <p className="font-bold text-green-700">{formatINR(customer.wallet.depositBalance)}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 

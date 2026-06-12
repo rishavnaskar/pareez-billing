@@ -6,7 +6,7 @@ import { getBillById } from "@/lib/db";
 import { Bill, ServiceItem, MembershipTier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Wallet, Gift } from "lucide-react";
+import { Banknote, Download, Wallet, Gift } from "lucide-react";
 import { generateBillPDF } from "@/lib/pdf-generator";
 import { maskPhoneNumber } from "@/lib/phone-mask";
 import { formatINR } from "@/lib/currency";
@@ -300,6 +300,17 @@ export default function BillPreviewPage() {
                     </span>
                   </div>
                 )}
+                {(bill.depositAmountUsed ?? 0) > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span className="flex items-center gap-1">
+                      <Banknote className="h-4 w-4" />
+                      Deposit Adjusted:
+                    </span>
+                    <span className="font-medium">
+                      {formatINR(-(bill.depositAmountUsed ?? 0))}
+                    </span>
+                  </div>
+                )}
                 {bill.walletAmountUsed > 0 && (
                   <div className="flex justify-between text-purple-600">
                     <span className="flex items-center gap-1">
@@ -325,7 +336,8 @@ export default function BillPreviewPage() {
                     {formatINR(bill.totalAmount)}
                   </span>
                 </div>
-                {bill.walletAmountUsed > 0 && (
+                {(bill.walletAmountUsed > 0 ||
+                  (bill.depositAmountUsed ?? 0) > 0) && (
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">
                       Amount Paid

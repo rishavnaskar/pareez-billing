@@ -57,6 +57,7 @@ export interface ResolvedRates {
 // Customer wallet for cashback system
 export interface CustomerWallet {
   balance: number; // Current cashback balance
+  depositBalance: number; // Advance/deposit money held for the customer (100% redeemable, no cap)
   lifetimeSpend: number; // Total spend for tier calculation
   lifetimeEarned: number; // Total cashback earned
   lifetimeRedeemed: number; // Total cashback used
@@ -69,11 +70,20 @@ export interface CustomerWallet {
 export interface WalletTransaction {
   id: string;
   customerId: string;
-  type: "credit" | "debit" | "adjustment" | "welcome_bonus" | "tier_downgrade";
+  type:
+    | "credit"
+    | "debit"
+    | "adjustment"
+    | "welcome_bonus"
+    | "tier_downgrade"
+    | "deposit"
+    | "deposit_redemption";
   amount: number;
   billId?: string;
   billNumber?: string;
   description: string;
+  // For deposit/deposit_redemption this is the deposit balance; otherwise the
+  // cashback wallet balance
   balanceAfter: number;
   tierAtTransaction: MembershipTier;
   createdAt: Date;
@@ -114,7 +124,8 @@ export interface Bill {
   // Cashback/wallet fields
   cashbackEarned: number; // Cashback credited for this bill
   walletAmountUsed: number; // Wallet balance used for payment
-  netPayableAmount: number; // totalAmount - walletAmountUsed
+  depositAmountUsed?: number; // Deposit/advance balance applied to this bill
+  netPayableAmount: number; // totalAmount - walletAmountUsed - depositAmountUsed
   customerTierAtPurchase: MembershipTier; // Tier when bill was created
   walletBalanceAfter: number; // Customer's wallet balance after this transaction
   cashbackRateApplied?: number; // The cashback rate used for this bill

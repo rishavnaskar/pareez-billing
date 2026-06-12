@@ -14,7 +14,7 @@ import {
 import { CustomerForm } from "./CustomerForm";
 import { getCustomers, deleteCustomer } from "@/lib/db";
 import { Customer } from "@/lib/types";
-import { Search, Users, Edit, Trash2, RefreshCw, Wallet } from "lucide-react";
+import { Search, Users, Edit, Trash2, RefreshCw, Wallet, Banknote } from "lucide-react";
 import { format } from "date-fns";
 import { maskPhoneForRole } from "@/lib/phone-mask";
 import { useAuth } from "@/contexts/AuthContext";
@@ -162,10 +162,18 @@ export function CustomerList() {
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm min-w-[100px]">
                         {customer.wallet ? (
-                          <span className="flex items-center gap-1 text-orange-600 font-medium">
-                            <Wallet className="h-3 w-3" />
-                            {formatINR(customer.wallet.balance)}
-                          </span>
+                          <div className="space-y-0.5">
+                            <span className="flex items-center gap-1 text-orange-600 font-medium">
+                              <Wallet className="h-3 w-3" />
+                              {formatINR(customer.wallet.balance)}
+                            </span>
+                            {customer.wallet.depositBalance > 0 && (
+                              <span className="flex items-center gap-1 text-green-700 font-medium">
+                                <Banknote className="h-3 w-3" />
+                                {formatINR(customer.wallet.depositBalance)}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-gray-400">₹0</span>
                         )}

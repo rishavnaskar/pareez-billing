@@ -14,8 +14,10 @@ import {
   Bill,
   CustomerWallet,
   MembershipTier,
+  PaymentMethod,
   WalletTransaction,
 } from "../types";
+import { PAYMENT_METHOD_LABELS } from "../constants";
 import {
   createInitialWallet,
   getTierBelow,
@@ -42,13 +44,73 @@ export async function getWalletTransactions(
   return querySnapshot.docs.map(walletTransactionFromDoc);
 }
 
+// Record a deposit/advance payment for a customer. Deposits are real money
+// held on the customer's behalf - kept separate from the cashback balance
+// and redeemable in full against any bill at any branch.
+export async function addCustomerDeposit(
+  customerId: string,
+  amount: number,
+  paymentMethod: PaymentMethod,
+  note: string,
+  createdBy: string,
+): Promise<CustomerWallet> {
+  if (amount <= 0) {
+    throw new Error("Deposit amount must be greater than zero");
+  }
+
+  const result = await runTransaction(db, async (transaction) => {
+    const customerRef = doc(db, "customers", customerId);
+    const customerSnap = await transaction.get(customerRef);
+
+    if (!customerSnap.exists()) {
+      throw new Error("Customer not found");
+    }
+
+    const customerData = customerSnap.data();
+    const currentWallet: CustomerWallet =
+      customerData.wallet || createInitialWallet(0);
+    const newDepositBalance = (currentWallet.depositBalance ?? 0) + amount;
+
+    transaction.update(customerRef, {
+      "wallet.depositBalance": newDepositBalance,
+      "wallet.lastActivityAt": Timestamp.now(),
+    });
+
+    const transactionRef = doc(collection(db, "walletTransactions"));
+    transaction.set(transactionRef, {
+      customerId,
+      type: "deposit",
+      amount,
+      description: `Deposit received (${PAYMENT_METHOD_LABELS[paymentMethod]})${
+        note ? `: ${note}` : ""
+      }`,
+      balanceAfter: newDepositBalance,
+      tierAtTransaction: currentWallet.tier,
+      createdAt: Timestamp.now(),
+      createdBy,
+    });
+
+    return {
+      ...currentWallet,
+      depositBalance: newDepositBalance,
+      tierUpdatedAt: toDate(currentWallet.tierUpdatedAt),
+      lastActivityAt: new Date(),
+    };
+  });
+
+  invalidate.customers();
+
+  return result;
+}
+
 // Process bill with wallet - atomically handles bill numbering, cashback
-// earning and wallet redemption
+// earning, wallet redemption and deposit redemption
 export async function processBillWithWallet(
   customerId: string,
   bill: Omit<Bill, "id" | "createdAt">,
   walletAmountToUse: number,
   cashbackToEarn: number,
+  depositAmountToUse: number = 0,
 ): Promise<{ billId: string; billNumber: string; updatedWallet: CustomerWallet }> {
   // Fetch configs and the counter seed before entering the transaction
   // (Firestore reads inside a transaction must go through the transaction object)
@@ -91,6 +153,16 @@ export async function processBillWithWallet(
       throw new Error("Insufficient wallet balance");
     }
 
+    // Deposits are the customer's own money: fully redeemable, no minimum
+    // bill requirement, but never more than the bill or the balance
+    const currentDepositBalance = currentWallet.depositBalance ?? 0;
+    if (depositAmountToUse > currentDepositBalance) {
+      throw new Error("Insufficient deposit balance");
+    }
+    if (depositAmountToUse > bill.totalAmount) {
+      throw new Error("Deposit redemption cannot exceed the bill total");
+    }
+
     if (
       walletAmountToUse > 0 &&
       bill.totalAmount < branchConfig.minBillForCashback
@@ -102,6 +174,7 @@ export async function processBillWithWallet(
 
     const newBalance =
       currentWallet.balance - walletAmountToUse + cashbackToEarn;
+    const newDepositBalance = currentDepositBalance - depositAmountToUse;
     const newLifetimeSpend = currentWallet.lifetimeSpend + bill.totalAmount;
 
     const newTier = getTierFromSpend(newLifetimeSpend, tierConfig.thresholds);
@@ -109,6 +182,7 @@ export async function processBillWithWallet(
 
     const updatedWallet: CustomerWallet = {
       balance: newBalance,
+      depositBalance: newDepositBalance,
       lifetimeSpend: newLifetimeSpend,
       lifetimeEarned: currentWallet.lifetimeEarned + cashbackToEarn,
       lifetimeRedeemed: currentWallet.lifetimeRedeemed + walletAmountToUse,
@@ -134,11 +208,27 @@ export async function processBillWithWallet(
       customerId,
       cashbackEarned: cashbackToEarn,
       walletAmountUsed: walletAmountToUse,
-      netPayableAmount: bill.totalAmount - walletAmountToUse,
+      depositAmountUsed: depositAmountToUse,
+      netPayableAmount: bill.totalAmount - walletAmountToUse - depositAmountToUse,
       customerTierAtPurchase: currentWallet.tier,
       walletBalanceAfter: newBalance,
       createdAt: Timestamp.now(),
     });
+
+    if (depositAmountToUse > 0) {
+      const depositDebitRef = doc(collection(db, "walletTransactions"));
+      transaction.set(depositDebitRef, {
+        customerId,
+        type: "deposit_redemption",
+        amount: -depositAmountToUse,
+        billId: billRef.id,
+        billNumber,
+        description: `Deposit applied to bill #${billNumber}`,
+        balanceAfter: newDepositBalance,
+        tierAtTransaction: currentWallet.tier,
+        createdAt: Timestamp.now(),
+      });
+    }
 
     if (walletAmountToUse > 0) {
       const debitRef = doc(collection(db, "walletTransactions"));
@@ -185,12 +275,15 @@ export async function processBillWithWallet(
   return result;
 }
 
-// Admin: Adjust wallet balance manually
+// Admin: Adjust wallet balance manually. `bucket` chooses between the
+// cashback rewards balance and the deposit/advance balance (e.g. refunding
+// an advance in cash or correcting a wrongly entered deposit).
 export async function adjustWalletBalance(
   customerId: string,
   amount: number,
   description: string,
   adminUserId: string,
+  bucket: "rewards" | "deposit" = "rewards",
 ): Promise<CustomerWallet> {
   const result = await runTransaction(db, async (transaction) => {
     const customerRef = doc(db, "customers", customerId);
@@ -203,6 +296,37 @@ export async function adjustWalletBalance(
     const customerData = customerSnap.data();
     const currentWallet: CustomerWallet =
       customerData.wallet || createInitialWallet(0);
+
+    if (bucket === "deposit") {
+      const newDepositBalance = (currentWallet.depositBalance ?? 0) + amount;
+      if (newDepositBalance < 0) {
+        throw new Error("Adjustment would result in negative deposit balance");
+      }
+
+      transaction.update(customerRef, {
+        "wallet.depositBalance": newDepositBalance,
+        "wallet.lastActivityAt": Timestamp.now(),
+      });
+
+      const transactionRef = doc(collection(db, "walletTransactions"));
+      transaction.set(transactionRef, {
+        customerId,
+        type: "adjustment",
+        amount,
+        description: `Admin deposit adjustment: ${description}`,
+        balanceAfter: newDepositBalance,
+        tierAtTransaction: currentWallet.tier,
+        createdAt: Timestamp.now(),
+        createdBy: adminUserId,
+      });
+
+      return {
+        ...currentWallet,
+        depositBalance: newDepositBalance,
+        tierUpdatedAt: toDate(currentWallet.tierUpdatedAt),
+        lastActivityAt: new Date(),
+      };
+    }
 
     const newBalance = currentWallet.balance + amount;
     if (newBalance < 0) {

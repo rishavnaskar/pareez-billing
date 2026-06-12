@@ -35,8 +35,14 @@ export function WalletAdjustmentDialog({
   const [adjustmentType, setAdjustmentType] = useState<"credit" | "debit">(
     "credit",
   );
+  const [bucket, setBucket] = useState<"rewards" | "deposit">("rewards");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+
+  const currentBucketBalance =
+    bucket === "deposit"
+      ? customer.wallet.depositBalance
+      : customer.wallet.balance;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +61,7 @@ export function WalletAdjustmentDialog({
     const finalAmount = adjustmentType === "debit" ? -numAmount : numAmount;
 
     // Check if debit would result in negative balance
-    if (adjustmentType === "debit" && numAmount > customer.wallet.balance) {
+    if (adjustmentType === "debit" && numAmount > currentBucketBalance) {
       alert("Cannot debit more than the current balance");
       return;
     }
@@ -67,6 +73,7 @@ export function WalletAdjustmentDialog({
         finalAmount,
         reason.trim(),
         user?.uid || "unknown",
+        bucket,
       );
 
       setOpen(false);
@@ -105,15 +112,50 @@ export function WalletAdjustmentDialog({
             <span className="font-medium">{customer.name}</span>
             <TierBadge tier={customer.wallet.tier} size="sm" />
           </div>
-          <div className="text-sm text-gray-600">
-            Current Balance:{" "}
-            <span className="font-bold text-orange-600">
-              {formatINR(customer.wallet.balance)}
-            </span>
+          <div className="text-sm text-gray-600 space-y-0.5">
+            <div>
+              Rewards Balance:{" "}
+              <span className="font-bold text-orange-600">
+                {formatINR(customer.wallet.balance)}
+              </span>
+            </div>
+            <div>
+              Deposit Balance:{" "}
+              <span className="font-bold text-green-700">
+                {formatINR(customer.wallet.depositBalance)}
+              </span>
+            </div>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={bucket === "rewards" ? "default" : "outline"}
+              className={
+                bucket === "rewards"
+                  ? "bg-orange-500 hover:bg-orange-600 flex-1"
+                  : "flex-1"
+              }
+              onClick={() => setBucket("rewards")}
+            >
+              Rewards Wallet
+            </Button>
+            <Button
+              type="button"
+              variant={bucket === "deposit" ? "default" : "outline"}
+              className={
+                bucket === "deposit"
+                  ? "bg-green-600 hover:bg-green-700 flex-1"
+                  : "flex-1"
+              }
+              onClick={() => setBucket("deposit")}
+            >
+              Deposit
+            </Button>
+          </div>
+
           <div className="flex gap-2">
             <Button
               type="button"
@@ -174,10 +216,12 @@ export function WalletAdjustmentDialog({
           {amount && !isNaN(parseFloat(amount)) && (
             <div className="p-3 bg-gray-50 rounded-lg text-sm">
               <div className="flex justify-between">
-                <span>New Balance:</span>
+                <span>
+                  New {bucket === "deposit" ? "Deposit" : "Rewards"} Balance:
+                </span>
                 <span className="font-bold">
                   {formatINR(
-                    customer.wallet.balance +
+                    currentBucketBalance +
                       (adjustmentType === "credit"
                         ? parseFloat(amount)
                         : -parseFloat(amount)),

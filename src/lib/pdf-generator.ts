@@ -17,6 +17,7 @@ export interface PDFGenerationOptions {
   // Wallet/cashback fields
   cashbackEarned?: number;
   walletAmountUsed?: number;
+  depositAmountUsed?: number;
   netPayableAmount?: number;
   customerTierAtPurchase?: MembershipTier;
   walletBalanceAfter?: number;
@@ -209,6 +210,19 @@ export async function generateBillPDF(
     yPos += 6;
   }
 
+  // Deposit/advance adjustment
+  if (options.depositAmountUsed && options.depositAmountUsed > 0) {
+    pdf.setTextColor(0, 128, 0); // Green for deposit
+    pdf.text("Deposit Adjusted:", margin + 20, yPos);
+    pdf.text(
+      formatINRNoSymbol(-options.depositAmountUsed),
+      pageWidth - margin,
+      yPos,
+      { align: "right" },
+    );
+    yPos += 6;
+  }
+
   // Wallet redemption
   if (options.walletAmountUsed && options.walletAmountUsed > 0) {
     pdf.setTextColor(128, 0, 128); // Purple for wallet
@@ -254,10 +268,10 @@ export async function generateBillPDF(
   });
   yPos += 8;
 
-  // Net payable if wallet was used
+  // Net payable if wallet or deposit was used
   if (
-    options.walletAmountUsed &&
-    options.walletAmountUsed > 0 &&
+    ((options.walletAmountUsed ?? 0) > 0 ||
+      (options.depositAmountUsed ?? 0) > 0) &&
     options.netPayableAmount !== undefined
   ) {
     pdf.setTextColor(0, 128, 0);

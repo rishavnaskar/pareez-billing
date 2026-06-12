@@ -49,6 +49,7 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
         createdAt: new Date(bill.createdAt),
         cashbackEarned: bill.cashbackEarned,
         walletAmountUsed: bill.walletAmountUsed,
+        depositAmountUsed: bill.depositAmountUsed,
         netPayableAmount: bill.netPayableAmount,
         customerTierAtPurchase: bill.customerTierAtPurchase,
         walletBalanceAfter: bill.walletBalanceAfter,
@@ -159,6 +160,7 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
               serviceDiscounts={serviceDiscounts}
               additionalDiscount={bill.discountAmount}
               walletAmountUsed={bill.walletAmountUsed}
+              depositAmountUsed={bill.depositAmountUsed}
               paymentMethod={bill.paymentMethod}
               totalAmount={bill.totalAmount}
               netPayable={bill.netPayableAmount}

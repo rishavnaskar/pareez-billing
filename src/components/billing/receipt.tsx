@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
-import { Wallet } from "lucide-react";
+import { Banknote, Wallet } from "lucide-react";
 import { ServiceItem, PaymentMethod } from "@/lib/types";
 import { formatINR } from "@/lib/currency";
 import { PAYMENT_METHOD_LABELS, SOCIAL_LINKS } from "@/lib/constants";
@@ -95,6 +95,7 @@ export function ReceiptTotals({
   serviceDiscounts,
   additionalDiscount,
   walletAmountUsed,
+  depositAmountUsed = 0,
   paymentMethod,
   totalAmount,
   netPayable,
@@ -104,6 +105,7 @@ export function ReceiptTotals({
   serviceDiscounts: number;
   additionalDiscount: number;
   walletAmountUsed: number;
+  depositAmountUsed?: number;
   paymentMethod: PaymentMethod;
   totalAmount: number;
   netPayable?: number;
@@ -127,6 +129,15 @@ export function ReceiptTotals({
           <span>{formatINR(-additionalDiscount)}</span>
         </div>
       )}
+      {depositAmountUsed > 0 && (
+        <div className="flex justify-between text-green-700">
+          <span className="flex items-center gap-1">
+            <Banknote className="h-4 w-4" />
+            Deposit Adjusted
+          </span>
+          <span>{formatINR(-depositAmountUsed)}</span>
+        </div>
+      )}
       {walletAmountUsed > 0 && (
         <div className="flex justify-between text-purple-600">
           <span className="flex items-center gap-1">
@@ -145,12 +156,13 @@ export function ReceiptTotals({
         <span>Bill Total</span>
         <span>{formatINR(totalAmount)}</span>
       </div>
-      {walletAmountUsed > 0 && netPayable !== undefined && (
-        <div className="flex justify-between text-lg font-bold text-green-600">
-          <span>{netPayableLabel}</span>
-          <span>{formatINR(netPayable)}</span>
-        </div>
-      )}
+      {(walletAmountUsed > 0 || depositAmountUsed > 0) &&
+        netPayable !== undefined && (
+          <div className="flex justify-between text-lg font-bold text-green-600">
+            <span>{netPayableLabel}</span>
+            <span>{formatINR(netPayable)}</span>
+          </div>
+        )}
     </div>
   );
 }

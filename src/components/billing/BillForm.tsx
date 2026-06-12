@@ -31,6 +31,8 @@ import { BillLogo } from "@/components/common/BillLogo";
 import { BranchSelector } from "./BranchSelector";
 import { BillQRCode } from "./BillQRCode";
 import { ServiceDialog, ServiceFormValues } from "./ServiceDialog";
+import { DepositDialog } from "./DepositDialog";
+import { DepositPanel } from "./DepositPanel";
 import { WalletPanel } from "./WalletPanel";
 import {
   ReceiptBillMeta,
@@ -67,12 +69,7 @@ import {
   PAYMENT_METHOD_LABELS,
 } from "@/lib/constants";
 
-interface BillFormProps {
-  // Incremented by the parent to reset the form (e.g. the "New Bill" FAB)
-  resetSignal?: number;
-}
-
-export function BillForm({ resetSignal = 0 }: BillFormProps) {
+export function BillForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -98,6 +95,10 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
   // Wallet states
   const [useWallet, setUseWallet] = useState(false);
   const [walletAmountToUse, setWalletAmountToUse] = useState(0);
+
+  // Deposit/advance redemption states
+  const [useDeposit, setUseDeposit] = useState(false);
+  const [depositAmountToUse, setDepositAmountToUse] = useState(0);
 
   // Select a newly created customer directly by its document ID
   const handleCustomerCreated = useCallback(
@@ -234,10 +235,17 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
           resolvedRates.minBillForCashback,
         )
       : 0;
-  const actualWalletUsage = useWallet
-    ? Math.min(walletAmountToUse, maxRedemption)
+  // Deposit is the customer's own money: applied first, fully redeemable,
+  // independent of cashback eligibility. Cashback redemption then covers at
+  // most whatever remains payable.
+  const availableDeposit = selectedCustomer?.wallet.depositBalance ?? 0;
+  const actualDepositUsage = useDeposit
+    ? Math.min(depositAmountToUse, availableDeposit, totalAmount)
     : 0;
-  const netPayable = totalAmount - actualWalletUsage;
+  const actualWalletUsage = useWallet
+    ? Math.min(walletAmountToUse, maxRedemption, totalAmount - actualDepositUsage)
+    : 0;
+  const netPayable = totalAmount - actualWalletUsage - actualDepositUsage;
   const cashbackToEarn =
     selectedCustomer && resolvedRates && isEligible
       ? calculateCashback(
@@ -252,6 +260,8 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
   useEffect(() => {
     setUseWallet(false);
     setWalletAmountToUse(0);
+    setUseDeposit(false);
+    setDepositAmountToUse(0);
   }, [selectedCustomer?.id]);
 
   useEffect(() => {
@@ -292,8 +302,11 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
 
     setLoading(true);
     try {
+      const depositUsage = useDeposit
+        ? Math.min(depositAmountToUse, availableDeposit, totalAmount)
+        : 0;
       const walletUsage = useWallet
-        ? Math.min(walletAmountToUse, maxRedemption)
+        ? Math.min(walletAmountToUse, maxRedemption, totalAmount - depositUsage)
         : 0;
       const cashback =
         resolvedRates && isEligible
@@ -320,7 +333,8 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
         paymentMethod,
         cashbackEarned: cashback,
         walletAmountUsed: walletUsage,
-        netPayableAmount: totalAmount - walletUsage,
+        depositAmountUsed: depositUsage,
+        netPayableAmount: totalAmount - walletUsage - depositUsage,
         customerTierAtPurchase: selectedCustomer.wallet.tier,
         walletBalanceAfter:
           selectedCustomer.wallet.balance - walletUsage + cashback,
@@ -329,10 +343,25 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
       };
 
       if (savedBill) {
-        // Update existing bill (wallet transactions already processed)
-        await updateBill(savedBill.id, billData);
-        setSavedBill({
+        // Update existing bill. The wallet/deposit transactions were already
+        // processed on the initial save, so preserve those amounts and only
+        // recompute the net payable against the edited total.
+        const updatedBillData: Omit<Bill, "id" | "createdAt"> = {
           ...billData,
+          cashbackEarned: savedBill.cashbackEarned,
+          walletAmountUsed: savedBill.walletAmountUsed,
+          depositAmountUsed: savedBill.depositAmountUsed ?? 0,
+          walletBalanceAfter: savedBill.walletBalanceAfter,
+          cashbackRateApplied: savedBill.cashbackRateApplied ?? 0,
+          maxRedemptionRateApplied: savedBill.maxRedemptionRateApplied ?? 0,
+          netPayableAmount:
+            totalAmount -
+            savedBill.walletAmountUsed -
+            (savedBill.depositAmountUsed ?? 0),
+        };
+        await updateBill(savedBill.id, updatedBillData);
+        setSavedBill({
+          ...updatedBillData,
           id: savedBill.id,
           createdAt: savedBill.createdAt,
         });
@@ -350,6 +379,7 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
           billData,
           walletUsage,
           cashback,
+          depositUsage,
         );
 
         // Update local customer state with new wallet
@@ -368,9 +398,11 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
         setHasChanges(false);
         setShowQRCode(true);
 
-        // Reset wallet usage for next bill
+        // Reset wallet/deposit usage for next bill
         setUseWallet(false);
         setWalletAmountToUse(0);
+        setUseDeposit(false);
+        setDepositAmountToUse(0);
       }
     } catch (error) {
       console.error("Error saving bill:", error);
@@ -396,6 +428,12 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
         totalAmount,
         paymentMethod,
         createdAt: currentDateTime,
+        cashbackEarned: savedBill.cashbackEarned,
+        walletAmountUsed: savedBill.walletAmountUsed,
+        depositAmountUsed: savedBill.depositAmountUsed,
+        netPayableAmount: savedBill.netPayableAmount,
+        customerTierAtPurchase: savedBill.customerTierAtPurchase,
+        walletBalanceAfter: savedBill.walletBalanceAfter,
       });
 
       const url = URL.createObjectURL(pdfBlob);
@@ -422,22 +460,11 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
     shareBillViaWhatsApp(savedBill, savedBill.id);
   };
 
-  const resetForm = useCallback(() => {
-    setSelectedCustomer(null);
-    setServices([]);
-    setDiscountAmount(0);
-    setSavedBill(null);
-    setShowQRCode(false);
-    if (selectedBranchId) {
-      generateBillNumber(selectedBranchId).then(setBillNumber);
-    }
-  }, [selectedBranchId]);
-
-  useEffect(() => {
-    if (resetSignal > 0) {
-      resetForm();
-    }
-  }, [resetSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A full reload guarantees a clean slate for the next bill (fresh bill
+  // number, no stale form state)
+  const startNewBill = () => {
+    window.location.reload();
+  };
 
   const currentDateTime = new Date();
   const visibleServices = services.filter((s) => s.serviceName);
@@ -508,17 +535,29 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
 
             {/* Services */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <Label className="text-base font-semibold">Services</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={openNewServiceDialog}
-                >
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add Service
-                </Button>
+                <div className="flex items-center gap-2">
+                  {selectedCustomer && (
+                    <DepositDialog
+                      customer={selectedCustomer}
+                      onSuccess={(updatedWallet) =>
+                        setSelectedCustomer((prev) =>
+                          prev ? { ...prev, wallet: updatedWallet } : prev,
+                        )
+                      }
+                    />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={openNewServiceDialog}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add Service
+                  </Button>
+                </div>
               </div>
 
               <ServiceDialog
@@ -660,6 +699,22 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
                 </div>
               )}
 
+              {/* Deposit Section - independent of cashback eligibility */}
+              {selectedCustomer &&
+                !savedBill &&
+                availableDeposit > 0 &&
+                totalAmount > 0 && (
+                  <DepositPanel
+                    depositBalance={availableDeposit}
+                    totalAmount={totalAmount}
+                    useDeposit={useDeposit}
+                    depositAmountToUse={depositAmountToUse}
+                    actualDepositUsage={actualDepositUsage}
+                    onUseDepositChange={setUseDeposit}
+                    onDepositAmountChange={setDepositAmountToUse}
+                  />
+                )}
+
               {/* Wallet Section */}
               {selectedCustomer && !savedBill && isEligible && resolvedRates && (
                 <WalletPanel
@@ -677,7 +732,7 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
               )}
 
               {/* Final Amount to Pay */}
-              {selectedCustomer && actualWalletUsage > 0 && (
+              {selectedCustomer && (actualWalletUsage > 0 || actualDepositUsage > 0) && (
                 <div className="flex justify-between text-xl font-bold pt-2">
                   <span>Amount to Pay</span>
                   <span className="text-green-600">
@@ -746,9 +801,10 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
                     billNumber={savedBill.billNumber}
                     bill={savedBill}
                     autoOpen={showQRCode}
+                    onNewBill={startNewBill}
                   />
                   <Button
-                    onClick={resetForm}
+                    onClick={startNewBill}
                     className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-green-400"
                   >
                     <Plus className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
@@ -808,10 +864,19 @@ export function BillForm({ resetSignal = 0 }: BillFormProps) {
                 subtotal={subtotal}
                 serviceDiscounts={serviceDiscounts}
                 additionalDiscount={discountAmount}
-                walletAmountUsed={actualWalletUsage}
+                // After saving, the redemption inputs reset for the next bill;
+                // keep showing what was actually recorded on the saved bill
+                walletAmountUsed={
+                  savedBill ? savedBill.walletAmountUsed : actualWalletUsage
+                }
+                depositAmountUsed={
+                  savedBill
+                    ? (savedBill.depositAmountUsed ?? 0)
+                    : actualDepositUsage
+                }
                 paymentMethod={paymentMethod}
                 totalAmount={totalAmount}
-                netPayable={netPayable}
+                netPayable={savedBill ? savedBill.netPayableAmount : netPayable}
                 netPayableLabel="Amount to Pay"
               />
 
