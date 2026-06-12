@@ -42,11 +42,11 @@ import {
   ReceiptTotals,
 } from "./receipt";
 import {
+  editBillWithWallet,
   generateBillNumber,
   getBranchById,
   getCustomerById,
   processBillWithWallet,
-  updateBill,
 } from "@/lib/db";
 import {
   Bill,
@@ -343,28 +343,17 @@ export function BillForm() {
       };
 
       if (savedBill) {
-        // Update existing bill. The wallet/deposit transactions were already
-        // processed on the initial save, so preserve those amounts and only
-        // recompute the net payable against the edited total.
-        const updatedBillData: Omit<Bill, "id" | "createdAt"> = {
-          ...billData,
-          cashbackEarned: savedBill.cashbackEarned,
-          walletAmountUsed: savedBill.walletAmountUsed,
-          depositAmountUsed: savedBill.depositAmountUsed ?? 0,
-          walletBalanceAfter: savedBill.walletBalanceAfter,
-          cashbackRateApplied: savedBill.cashbackRateApplied ?? 0,
-          maxRedemptionRateApplied: savedBill.maxRedemptionRateApplied ?? 0,
-          netPayableAmount:
-            totalAmount -
-            savedBill.walletAmountUsed -
-            (savedBill.depositAmountUsed ?? 0),
-        };
-        await updateBill(savedBill.id, updatedBillData);
-        setSavedBill({
-          ...updatedBillData,
-          id: savedBill.id,
-          createdAt: savedBill.createdAt,
-        });
+        // Update existing bill. Wallet/deposit redemption stays locked to the
+        // original save; the transaction recomputes cashback on the new total
+        // and adjusts the customer's wallet by the delta.
+        const { updatedBill, updatedWallet } = await editBillWithWallet(
+          savedBill.id,
+          { services, subtotal, discountAmount, totalAmount, paymentMethod },
+        );
+        setSelectedCustomer((prev) =>
+          prev ? { ...prev, wallet: updatedWallet } : null,
+        );
+        setSavedBill(updatedBill);
         setHasChanges(false);
       } else {
         // Create new bill with wallet processing; the final bill number is
@@ -406,7 +395,11 @@ export function BillForm() {
       }
     } catch (error) {
       console.error("Error saving bill:", error);
-      alert("Failed to save bill. Please check your Firebase configuration.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to save bill. Please check your Firebase configuration.",
+      );
     } finally {
       setLoading(false);
     }

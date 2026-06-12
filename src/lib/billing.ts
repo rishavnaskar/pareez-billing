@@ -6,6 +6,14 @@ export interface BillTotals {
   totalAmount: number;
 }
 
+// Bills stay editable for 24 hours after creation. The same window is
+// enforced server-side in firestore.rules — keep the two in sync.
+export const BILL_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function isBillEditable(createdAt: Date): boolean {
+  return Date.now() - createdAt.getTime() < BILL_EDIT_WINDOW_MS;
+}
+
 // Single source of truth for bill math, shared by the form, preview and save path
 export function computeBillTotals(
   services: ServiceItem[],

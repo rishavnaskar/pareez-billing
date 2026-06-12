@@ -16,7 +16,9 @@ import { getAllBills } from '@/lib/db';
 import { getBranches } from '@/lib/db';
 import { Bill, Branch } from '@/lib/types';
 import { BillPreviewDialog } from './BillPreviewDialog';
-import { Receipt, RefreshCw } from 'lucide-react';
+import { BillEditDialog } from './BillEditDialog';
+import { isBillEditable } from '@/lib/billing';
+import { Pencil, Receipt, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,6 +36,7 @@ export function BillHistory() {
     const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
+    const [editingBill, setEditingBill] = useState<Bill | null>(null);
 
     const clearFilters = () => {
         setStartDate('');
@@ -115,6 +118,18 @@ export function BillHistory() {
 
     return (
         <Card>
+            <BillEditDialog
+                bill={editingBill}
+                open={editingBill !== null}
+                onOpenChange={(open) => {
+                    if (!open) setEditingBill(null);
+                }}
+                onSaved={(updated) => {
+                    setAllBills((prev) =>
+                        prev.map((b) => (b.id === updated.id ? updated : b)),
+                    );
+                }}
+            />
             <CardHeader className="pb-3 sm:pb-6">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -245,6 +260,7 @@ export function BillHistory() {
                                                 <TableHead className="text-xs sm:text-sm min-w-[180px]">Time</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[200px]">Services</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[80px]">Total</TableHead>
+                                                <TableHead className="text-xs sm:text-sm w-[48px]"><span className="sr-only">Actions</span></TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -264,6 +280,9 @@ export function BillHistory() {
                                                             </TableCell>
                                                             <TableCell className="text-xs sm:text-sm min-w-[180px]">
                                                                 {format(new Date(bill.createdAt), 'hh:mm a')}
+                                                                {bill.editedAt && (
+                                                                    <span className="ml-1 text-[10px] text-gray-400">(edited)</span>
+                                                                )}
                                                             </TableCell>
                                                             <TableCell className="min-w-[200px]">
                                                                 <div className="flex flex-wrap gap-1">
@@ -281,6 +300,26 @@ export function BillHistory() {
                                                             </TableCell>
                                                             <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900">
                                                                 {formatINR(bill.totalAmount)}
+                                                            </TableCell>
+                                                            <TableCell className="w-[48px]">
+                                                                {isBillEditable(bill.createdAt) && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        aria-label={`Edit bill ${bill.billNumber}`}
+                                                                        className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                                                                        onClick={(e) => {
+                                                                            // The whole row opens the preview dialog —
+                                                                            // keep this click from reaching it
+                                                                            e.stopPropagation();
+                                                                            e.preventDefault();
+                                                                            setEditingBill(bill);
+                                                                        }}
+                                                                    >
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                )}
                                                             </TableCell>
                                                         </TableRow>
                                                     </BillPreviewDialog>

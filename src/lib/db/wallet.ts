@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -15,18 +16,21 @@ import {
   CustomerWallet,
   MembershipTier,
   PaymentMethod,
+  ServiceItem,
   WalletTransaction,
 } from "../types";
 import { PAYMENT_METHOD_LABELS } from "../constants";
 import {
+  calculateCashback,
   createInitialWallet,
   getTierBelow,
   getTierFromSpend,
   shouldDowngradeForInactivity,
 } from "../wallet";
+import { isBillEditable } from "../billing";
 import { getBranchConfig, getBranchTierConfig } from "../branch-config";
 import { invalidate } from "../cache";
-import { toDate, walletTransactionFromDoc } from "./converters";
+import { billFromDoc, toDate, walletFromData, walletTransactionFromDoc } from "./converters";
 import { billCounterRef, formatBillNumber, getTodayBillCount } from "./bills";
 
 export async function getWalletTransactions(
@@ -266,6 +270,160 @@ export async function processBillWithWallet(
     }
 
     return { billId: billRef.id, billNumber, updatedWallet };
+  });
+
+  // Invalidate after commit; the transaction body may run more than once
+  invalidate.customers();
+  invalidate.bills();
+
+  return result;
+}
+
+// Editable parts of a bill. Wallet/deposit redemption and the bill number
+// stay fixed — that money already moved when the bill was created.
+export interface BillEditUpdates {
+  services: ServiceItem[];
+  subtotal: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+}
+
+// Edit a bill within 24 hours of creation, keeping the customer's wallet
+// consistent: cashback is recomputed on the new total (at the rate locked in
+// when the bill was created), and the balance / lifetime spend / tier are
+// adjusted by the delta. The 24h window is also enforced in firestore.rules.
+export async function editBillWithWallet(
+  billId: string,
+  updates: BillEditUpdates,
+): Promise<{ updatedBill: Bill; updatedWallet: CustomerWallet }> {
+  // Look up the bill outside the transaction to learn its branch, then fetch
+  // configs (reads inside a transaction must go through the transaction object)
+  const billRef = doc(db, "bills", billId);
+  const preSnap = await getDoc(billRef);
+  if (!preSnap.exists()) {
+    throw new Error("Bill not found");
+  }
+  const preBill = billFromDoc(preSnap);
+
+  const [tierConfig, branchConfig] = await Promise.all([
+    getBranchTierConfig(preBill.branchId),
+    getBranchConfig(preBill.branchId),
+  ]);
+
+  const result = await runTransaction(db, async (transaction) => {
+    const customerRef = doc(db, "customers", preBill.customerId);
+    const [billSnap, customerSnap] = await Promise.all([
+      transaction.get(billRef),
+      transaction.get(customerRef),
+    ]);
+
+    if (!billSnap.exists()) {
+      throw new Error("Bill not found");
+    }
+    if (!customerSnap.exists()) {
+      throw new Error("Customer not found");
+    }
+
+    const bill = billFromDoc(billSnap);
+    if (!isBillEditable(bill.createdAt)) {
+      throw new Error("Bills can only be edited within 24 hours of creation");
+    }
+
+    const walletUsed = bill.walletAmountUsed ?? 0;
+    const depositUsed = bill.depositAmountUsed ?? 0;
+    if (updates.totalAmount < walletUsed + depositUsed) {
+      throw new Error(
+        `New total cannot be less than the wallet/deposit amount already redeemed on this bill (₹${walletUsed + depositUsed})`,
+      );
+    }
+
+    const oldCashback = bill.cashbackEarned ?? 0;
+    const newCashback = calculateCashback(
+      updates.totalAmount,
+      walletUsed,
+      bill.cashbackRateApplied ?? 0,
+      branchConfig.minBillForCashback,
+    );
+    const cashbackDelta = newCashback - oldCashback;
+    const spendDelta = updates.totalAmount - bill.totalAmount;
+
+    const currentWallet = walletFromData(customerSnap.data().wallet);
+    const newBalance = currentWallet.balance + cashbackDelta;
+    if (newBalance < 0) {
+      throw new Error(
+        "Cannot reduce this bill: the cashback it earned has already been spent from the customer's wallet",
+      );
+    }
+
+    const newLifetimeSpend = Math.max(
+      0,
+      currentWallet.lifetimeSpend + spendDelta,
+    );
+    const newLifetimeEarned = Math.max(
+      0,
+      currentWallet.lifetimeEarned + cashbackDelta,
+    );
+    const newTier = getTierFromSpend(newLifetimeSpend, tierConfig.thresholds);
+    const tierChanged = newTier !== currentWallet.tier;
+
+    transaction.update(customerRef, {
+      "wallet.balance": newBalance,
+      "wallet.lifetimeSpend": newLifetimeSpend,
+      "wallet.lifetimeEarned": newLifetimeEarned,
+      "wallet.tier": newTier,
+      ...(tierChanged ? { "wallet.tierUpdatedAt": Timestamp.now() } : {}),
+      "wallet.lastActivityAt": Timestamp.now(),
+    });
+
+    const netPayableAmount = updates.totalAmount - walletUsed - depositUsed;
+    transaction.update(billRef, {
+      services: updates.services,
+      subtotal: updates.subtotal,
+      discountAmount: updates.discountAmount,
+      totalAmount: updates.totalAmount,
+      paymentMethod: updates.paymentMethod,
+      cashbackEarned: newCashback,
+      netPayableAmount,
+      walletBalanceAfter: newBalance,
+      editedAt: Timestamp.now(),
+    });
+
+    if (cashbackDelta !== 0) {
+      const txnRef = doc(collection(db, "walletTransactions"));
+      transaction.set(txnRef, {
+        customerId: preBill.customerId,
+        type: "adjustment",
+        amount: cashbackDelta,
+        billId,
+        billNumber: bill.billNumber,
+        description: `Bill #${bill.billNumber} edited: cashback adjusted from ₹${oldCashback} to ₹${newCashback}`,
+        balanceAfter: newBalance,
+        tierAtTransaction: newTier,
+        createdAt: Timestamp.now(),
+      });
+    }
+
+    const updatedWallet: CustomerWallet = {
+      ...currentWallet,
+      balance: newBalance,
+      lifetimeSpend: newLifetimeSpend,
+      lifetimeEarned: newLifetimeEarned,
+      tier: newTier,
+      tierUpdatedAt: tierChanged ? new Date() : currentWallet.tierUpdatedAt,
+      lastActivityAt: new Date(),
+    };
+
+    const updatedBill: Bill = {
+      ...bill,
+      ...updates,
+      cashbackEarned: newCashback,
+      netPayableAmount,
+      walletBalanceAfter: newBalance,
+      editedAt: new Date(),
+    };
+
+    return { updatedBill, updatedWallet };
   });
 
   // Invalidate after commit; the transaction body may run more than once

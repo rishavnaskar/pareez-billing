@@ -131,6 +131,7 @@ export interface Bill {
   cashbackRateApplied?: number; // The cashback rate used for this bill
   maxRedemptionRateApplied?: number; // The max redemption rate used for this bill
   createdAt: Date;
+  editedAt?: Date; // Set when the bill is edited after creation (allowed within 24h)
 }
 
 export type UserRole = "admin" | "user";

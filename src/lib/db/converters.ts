@@ -49,6 +49,7 @@ export function billFromDoc(doc: DocumentSnapshot): Bill {
     ...data,
     id: doc.id,
     createdAt: toDate(data.createdAt),
+    ...(data.editedAt ? { editedAt: toDate(data.editedAt) } : {}),
   } as Bill;
 }
 
