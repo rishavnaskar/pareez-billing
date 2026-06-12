@@ -30,5 +30,55 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read, write: if request.auth != null;
     }
+
+    // Website analytics events — created anonymously by pareezsalon.com,
+    // readable only by logged-in admins, immutable once written.
+    match /webEvents/{eventId} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'type', 'path', 'label', 'sessionId', 'visitorId', 'device',
+          'referrer', 'utmSource', 'utmMedium', 'utmCampaign', 'ts'
+        ])
+        && request.resource.data.type is string
+        && request.resource.data.type.size() > 0
+        && request.resource.data.type.size() <= 40
+        && request.resource.data.path is string
+        && request.resource.data.path.size() <= 200
+        && request.resource.data.label is string
+        && request.resource.data.label.size() <= 200
+        && request.resource.data.sessionId is string
+        && request.resource.data.sessionId.size() <= 64
+        && request.resource.data.visitorId is string
+        && request.resource.data.visitorId.size() <= 64
+        && request.resource.data.ts is timestamp;
+      allow read: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // Appointment requests from the website booking form — created
+    // anonymously; admins can read, update the status, or delete.
+    match /webBookings/{bookingId} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'name', 'phone', 'branchId', 'branchName', 'service', 'date',
+          'time', 'notes', 'status', 'sessionId', 'visitorId', 'device',
+          'createdAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() > 0
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.service is string
+        && request.resource.data.service.size() <= 120
+        && request.resource.data.notes is string
+        && request.resource.data.notes.size() <= 300
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt is timestamp;
+      allow read: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['new', 'contacted', 'booked', 'closed'];
+      allow delete: if request.auth != null;
+    }
   }
 }
