@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { ServiceItem } from "@/lib/types";
+import {
+  getActiveProducts,
+  type CatalogueProduct,
+} from "@/lib/db/products";
 
 export interface ServiceFormValues {
   serviceName: string;
@@ -41,8 +50,6 @@ export function ServiceDialog({
             {editingService ? "Edit Service" : "Add Service"}
           </DialogTitle>
         </DialogHeader>
-        {/* Content unmounts when the dialog closes, so the fields component
-            mounts with fresh state on every open. */}
         <ServiceFormFields
           key={editingService?.id ?? "new"}
           editingService={editingService}
@@ -56,6 +63,8 @@ export function ServiceDialog({
     </Dialog>
   );
 }
+
+const SECTION_ORDER = ["Men's", "Women's", "Unisex", "Other"];
 
 function ServiceFormFields({
   editingService,
@@ -76,6 +85,45 @@ function ServiceFormFields({
         }
       : { serviceName: "", price: "", discountAmount: "", staffName: "" },
   );
+
+  const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+
+  useEffect(() => {
+    getActiveProducts().then(setCatalogue).catch(() => {});
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = form.serviceName.trim().toLowerCase();
+    if (!q) return catalogue.slice(0, 30);
+    return catalogue.filter((p) => p.name.toLowerCase().includes(q));
+  }, [form.serviceName, catalogue]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, CatalogueProduct[]>();
+    for (const p of filtered) {
+      const key = p.section || "Other";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    const sorted = new Map<string, CatalogueProduct[]>();
+    for (const section of SECTION_ORDER) {
+      if (map.has(section)) sorted.set(section, map.get(section)!);
+    }
+    for (const [k, v] of map) {
+      if (!sorted.has(k)) sorted.set(k, v);
+    }
+    return sorted;
+  }, [filtered]);
+
+  function selectSuggestion(p: CatalogueProduct) {
+    setForm((prev) => ({
+      ...prev,
+      serviceName: p.name,
+      price: String(p.price),
+    }));
+    setSuggestOpen(false);
+  }
 
   const handleSave = () => {
     const price = parseFloat(form.price) || 0;
@@ -111,14 +159,57 @@ function ServiceFormFields({
           <Label className="text-sm font-medium" htmlFor="service-name">
             Service Name
           </Label>
-          <Input
-            id="service-name"
-            placeholder="e.g., Haircut"
-            value={form.serviceName}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, serviceName: e.target.value }))
-            }
-          />
+          <Popover
+            open={suggestOpen && filtered.length > 0}
+            onOpenChange={setSuggestOpen}
+          >
+            <PopoverAnchor asChild>
+              <Input
+                id="service-name"
+                placeholder="e.g., Haircut"
+                value={form.serviceName}
+                autoComplete="off"
+                onChange={(e) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    serviceName: e.target.value,
+                  }));
+                  setSuggestOpen(true);
+                }}
+                onFocus={() => setSuggestOpen(true)}
+              />
+            </PopoverAnchor>
+            <PopoverContent
+              className="p-0 w-[--radix-popover-trigger-width] max-h-56 overflow-y-auto rounded-md border border-gray-200 shadow-lg"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              align="start"
+              sideOffset={4}
+            >
+              {Array.from(grouped.entries()).map(([section, items]) => (
+                <div key={section}>
+                  <div className="sticky top-0 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-600 bg-orange-50 border-b border-orange-100">
+                    {section}
+                  </div>
+                  {items.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectSuggestion(p);
+                      }}
+                    >
+                      <span className="text-gray-800">{p.name}</span>
+                      <span className="text-gray-400 ml-3 shrink-0">
+                        ₹{p.price}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
