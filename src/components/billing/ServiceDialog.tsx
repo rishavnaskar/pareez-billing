@@ -66,6 +66,51 @@ export function ServiceDialog({
 
 const SECTION_ORDER = ["Men's", "Women's", "Unisex", "Other"];
 
+// Strip everything except letters and digits for fuzzy matching.
+// "hair cut" → "haircut", "lo'real" → "loreal", "o3+" → "o3"
+function norm(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function scoreMatch(p: CatalogueProduct, query: string): number {
+  if (!query) return 1;
+
+  const q = query.toLowerCase().trim();
+  const qNorm = norm(q);
+  const nameLow = p.name.toLowerCase();
+  const nameNorm = norm(p.name);
+  const catLow = p.category.toLowerCase();
+
+  // Tier 1 — exact or strong prefix on full name
+  if (nameLow === q) return 100;
+  if (nameLow.startsWith(q)) return 90;
+
+  // Tier 2 — verbatim substring in name
+  if (nameLow.includes(q)) return 80;
+
+  // Tier 3 — normalized match (ignores spaces / punctuation)
+  // "haircut" matches "hair cut", "loreal" matches "lo'real"
+  if (nameNorm.includes(qNorm)) return 70;
+  if (qNorm.length >= 3 && nameNorm.startsWith(qNorm)) return 75;
+
+  // Tier 4 — all query words appear somewhere in the name words
+  const nameWords = nameLow.split(/\W+/).filter(Boolean);
+  const qWords = q.split(/\W+/).filter(Boolean);
+  if (qWords.length === 0) return 0;
+
+  const matchedWords = qWords.filter((qw) =>
+    nameWords.some((nw) => nw.startsWith(qw) || qw.startsWith(nw))
+  );
+  const ratio = matchedWords.length / qWords.length;
+  if (ratio === 1) return 60;
+  if (ratio >= 0.5) return Math.round(50 * ratio);
+
+  // Tier 5 — category match
+  if (catLow.includes(q) || norm(catLow).includes(qNorm)) return 20;
+
+  return 0;
+}
+
 function ServiceFormFields({
   editingService,
   onCancel,
@@ -94,9 +139,13 @@ function ServiceFormFields({
   }, []);
 
   const filtered = useMemo(() => {
-    const q = form.serviceName.trim().toLowerCase();
+    const q = form.serviceName.trim();
     if (!q) return catalogue.slice(0, 30);
-    return catalogue.filter((p) => p.name.toLowerCase().includes(q));
+    return catalogue
+      .map((p) => ({ p, score: scoreMatch(p, q) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ p }) => p);
   }, [form.serviceName, catalogue]);
 
   const grouped = useMemo(() => {
