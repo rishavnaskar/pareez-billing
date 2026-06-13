@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,9 @@ interface ServiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingService: ServiceItem | null;
-  onSave: (values: ServiceFormValues) => void;
+  // Emits one entry per service. In edit mode this is always a single entry;
+  // in add mode the user can build several services in one go.
+  onSave: (values: ServiceFormValues[]) => void;
 }
 
 export function ServiceDialog({
@@ -111,6 +114,38 @@ function scoreMatch(p: CatalogueProduct, query: string): number {
   return 0;
 }
 
+// Split a single group discount across services in proportion to their price,
+// rounded to whole rupees with the leftover handed to the largest fractions so
+// the per-line discounts always sum to exactly the entered amount.
+function distributeDiscount(prices: number[], total: number): number[] {
+  const sum = prices.reduce((a, b) => a + b, 0);
+  if (sum <= 0 || total <= 0) return prices.map(() => 0);
+
+  const capped = Math.min(total, sum);
+  const raw = prices.map((p) => (capped * p) / sum);
+  const result = raw.map((r) => Math.floor(r));
+  let leftover = Math.round(capped) - result.reduce((a, b) => a + b, 0);
+
+  const byFraction = raw
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+
+  for (let k = 0; k < byFraction.length && leftover > 0; k++) {
+    const idx = byFraction[k].i;
+    if (result[idx] < prices[idx]) {
+      result[idx] += 1;
+      leftover--;
+    }
+  }
+  return result;
+}
+
+interface ServiceRow {
+  id: string;
+  serviceName: string;
+  price: string;
+}
+
 function ServiceFormFields({
   editingService,
   onCancel,
@@ -118,35 +153,203 @@ function ServiceFormFields({
 }: {
   editingService: ServiceItem | null;
   onCancel: () => void;
-  onSave: (values: ServiceFormValues) => void;
+  onSave: (values: ServiceFormValues[]) => void;
 }) {
-  const [form, setForm] = useState(() =>
+  const isEditing = !!editingService;
+  const rowId = useRef(0);
+  const nextRowId = () => `row-${rowId.current++}`;
+
+  const [rows, setRows] = useState<ServiceRow[]>(() =>
     editingService
-      ? {
-          serviceName: editingService.serviceName,
-          price: String(editingService.price || ""),
-          discountAmount: String(editingService.discountAmount || ""),
-          staffName: editingService.staffName || "",
-        }
-      : { serviceName: "", price: "", discountAmount: "", staffName: "" },
+      ? [
+          {
+            id: nextRowId(),
+            serviceName: editingService.serviceName,
+            price: String(editingService.price || ""),
+          },
+        ]
+      : [{ id: nextRowId(), serviceName: "", price: "" }],
+  );
+  const [discountAmount, setDiscountAmount] = useState(() =>
+    editingService ? String(editingService.discountAmount || "") : "",
+  );
+  const [staffName, setStaffName] = useState(
+    () => editingService?.staffName || "",
   );
 
   const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
-  const [suggestOpen, setSuggestOpen] = useState(false);
 
   useEffect(() => {
     getActiveProducts().then(setCatalogue).catch(() => {});
   }, []);
 
+  const updateRow = (id: string, patch: Partial<ServiceRow>) =>
+    setRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
+
+  const addRow = () =>
+    setRows((prev) => [
+      ...prev,
+      { id: nextRowId(), serviceName: "", price: "" },
+    ]);
+
+  const removeRow = (id: string) =>
+    setRows((prev) => prev.filter((r) => r.id !== id));
+
+  // A row counts only once the user has typed something into it; the trailing
+  // blank row (with the + button) is ignored rather than treated as invalid.
+  const isBlankRow = (r: ServiceRow) =>
+    !r.serviceName.trim() && !r.price.trim();
+  const filledCount = rows.filter((r) => !isBlankRow(r)).length;
+
+  const handleSave = () => {
+    const parsed = rows
+      .filter((r) => !isBlankRow(r))
+      .map((r) => ({
+        serviceName: r.serviceName.trim(),
+        price: parseFloat(r.price) || 0,
+      }));
+
+    if (parsed.length === 0) {
+      alert("Please add at least one service");
+      return;
+    }
+    if (parsed.some((r) => !r.serviceName)) {
+      alert("Please enter a name for every service");
+      return;
+    }
+    if (parsed.some((r) => r.price <= 0)) {
+      alert("Please enter a valid price for every service");
+      return;
+    }
+
+    const totalDiscount = parseFloat(discountAmount) || 0;
+    const totalPrice = parsed.reduce((a, r) => a + r.price, 0);
+    if (totalDiscount > totalPrice) {
+      alert("Discount cannot exceed the total service price");
+      return;
+    }
+
+    const discounts = distributeDiscount(
+      parsed.map((r) => r.price),
+      totalDiscount,
+    );
+    const staff = staffName.trim();
+
+    onSave(
+      parsed.map((r, i) => ({
+        serviceName: r.serviceName,
+        price: r.price,
+        discountAmount: discounts[i],
+        staffName: staff,
+      })),
+    );
+  };
+
+  return (
+    <>
+      <div className="space-y-3 text-sm">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">
+            {isEditing ? "Service" : "Services"}
+          </Label>
+          {rows.map((row, index) => (
+            <ServiceNamePriceRow
+              key={row.id}
+              row={row}
+              catalogue={catalogue}
+              onChange={(patch) => updateRow(row.id, patch)}
+              // Inline + on the last row to add another; × to drop extra rows.
+              trailing={
+                isEditing
+                  ? "none"
+                  : index === rows.length - 1
+                    ? "add"
+                    : "remove"
+              }
+              onAdd={addRow}
+              onRemove={() => removeRow(row.id)}
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-sm font-medium" htmlFor="service-discount">
+              Discount (₹){!isEditing && filledCount > 1 ? " — total" : ""}
+            </Label>
+            <Input
+              id="service-discount"
+              type="number"
+              placeholder="0"
+              min="0"
+              value={discountAmount}
+              onChange={(e) => setDiscountAmount(e.target.value)}
+            />
+            {!isEditing && filledCount > 1 && (
+              <p className="text-[11px] text-gray-400">
+                Split across services by price
+              </p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label className="text-sm font-medium" htmlFor="service-staff">
+              Staff (Optional)
+            </Label>
+            <Input
+              id="service-staff"
+              placeholder="Staff"
+              value={staffName}
+              onChange={(e) => setStaffName(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+      <DialogFooter className="mt-4 gap-2 flex-col sm:flex-row">
+        <Button variant="outline" className="w-full sm:w-auto" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white shadow"
+          onClick={handleSave}
+        >
+          {isEditing
+            ? "Update Service"
+            : filledCount > 1
+              ? `Add ${filledCount} Services`
+              : "Add Service"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+function ServiceNamePriceRow({
+  row,
+  catalogue,
+  onChange,
+  trailing,
+  onAdd,
+  onRemove,
+}: {
+  row: ServiceRow;
+  catalogue: CatalogueProduct[];
+  onChange: (patch: Partial<ServiceRow>) => void;
+  trailing: "add" | "remove" | "none";
+  onAdd: () => void;
+  onRemove: () => void;
+}) {
+  const [suggestOpen, setSuggestOpen] = useState(false);
+
   const filtered = useMemo(() => {
-    const q = form.serviceName.trim();
+    const q = row.serviceName.trim();
     if (!q) return catalogue.slice(0, 30);
     return catalogue
       .map((p) => ({ p, score: scoreMatch(p, q) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ p }) => p);
-  }, [form.serviceName, catalogue]);
+  }, [row.serviceName, catalogue]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, CatalogueProduct[]>();
@@ -166,165 +369,99 @@ function ServiceFormFields({
   }, [filtered]);
 
   function selectSuggestion(p: CatalogueProduct) {
-    setForm((prev) => ({
-      ...prev,
-      serviceName: p.name,
-      price: String(p.price),
-    }));
+    onChange({ serviceName: p.name, price: String(p.price) });
     setSuggestOpen(false);
   }
 
-  const handleSave = () => {
-    const price = parseFloat(form.price) || 0;
-    const discountAmount = parseFloat(form.discountAmount) || 0;
-
-    if (!form.serviceName.trim()) {
-      alert("Please enter service name");
-      return;
-    }
-
-    if (price <= 0) {
-      alert("Please enter a valid price");
-      return;
-    }
-
-    if (discountAmount > price) {
-      alert("Discount cannot exceed the service price");
-      return;
-    }
-
-    onSave({
-      serviceName: form.serviceName.trim(),
-      price,
-      discountAmount,
-      staffName: form.staffName.trim(),
-    });
-  };
-
   return (
-    <>
-      <div className="space-y-3 text-sm">
-        <div className="space-y-1">
-          <Label className="text-sm font-medium" htmlFor="service-name">
-            Service Name
-          </Label>
-          <Popover
-            open={suggestOpen && filtered.length > 0}
-            onOpenChange={setSuggestOpen}
-          >
-            <PopoverAnchor asChild>
-              <Input
-                id="service-name"
-                placeholder="e.g., Haircut"
-                value={form.serviceName}
-                autoComplete="off"
-                onChange={(e) => {
-                  setForm((prev) => ({
-                    ...prev,
-                    serviceName: e.target.value,
-                  }));
-                  setSuggestOpen(true);
-                }}
-                onFocus={() => setSuggestOpen(true)}
-              />
-            </PopoverAnchor>
-            <PopoverContent
-              className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              align="start"
-              sideOffset={6}
-            >
-              {Array.from(grouped.entries()).map(([section, items], gi) => (
-                <div key={section}>
-                  <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100 ${gi > 0 ? "border-t border-gray-100" : ""}`}>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
-                      {section}
-                    </span>
-                    <span className="text-[10px] text-gray-400">{items.length}</span>
-                  </div>
-                  {items.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 active:bg-orange-100 transition-colors border-b border-gray-50 last:border-0"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        selectSuggestion(p);
-                      }}
-                    >
-                      <span className="flex-1 min-w-0 text-[13px] text-gray-800 leading-snug truncate">
-                        {p.name}
-                      </span>
-                      <span className="shrink-0 text-[12px] font-semibold text-orange-500 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">
-                        ₹{p.price.toLocaleString("en-IN")}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-sm font-medium" htmlFor="service-price">
-              Price (₹)
-            </Label>
-            <Input
-              id="service-price"
-              type="number"
-              placeholder="0"
-              min="0"
-              value={form.price}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, price: e.target.value }))
-              }
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-sm font-medium" htmlFor="service-discount">
-              Discount (₹)
-            </Label>
-            <Input
-              id="service-discount"
-              type="number"
-              placeholder="0"
-              min="0"
-              value={form.discountAmount}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  discountAmount: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-sm font-medium" htmlFor="service-staff">
-            Staff (Optional)
-          </Label>
-          <Input
-            id="service-staff"
-            placeholder="Staff"
-            value={form.staffName}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, staffName: e.target.value }))
-            }
-          />
-        </div>
-      </div>
-      <DialogFooter className="mt-4 gap-2 flex-col sm:flex-row">
-        <Button variant="outline" className="w-full sm:w-auto" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white shadow"
-          onClick={handleSave}
+    <div className="flex items-start gap-2">
+      <div className="flex-1 min-w-0">
+        <Popover
+          open={suggestOpen && filtered.length > 0}
+          onOpenChange={setSuggestOpen}
         >
-          {editingService ? "Update Service" : "Add Service"}
+          <PopoverAnchor asChild>
+            <Input
+              placeholder="e.g., Haircut"
+              value={row.serviceName}
+              autoComplete="off"
+              onChange={(e) => {
+                onChange({ serviceName: e.target.value });
+                setSuggestOpen(true);
+              }}
+              onFocus={() => setSuggestOpen(true)}
+            />
+          </PopoverAnchor>
+          <PopoverContent
+            className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            align="start"
+            sideOffset={6}
+          >
+            {Array.from(grouped.entries()).map(([section, items], gi) => (
+              <div key={section}>
+                <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100 ${gi > 0 ? "border-t border-gray-100" : ""}`}>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                    {section}
+                  </span>
+                  <span className="text-[10px] text-gray-400">{items.length}</span>
+                </div>
+                {items.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 active:bg-orange-100 transition-colors border-b border-gray-50 last:border-0"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectSuggestion(p);
+                    }}
+                  >
+                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 leading-snug truncate">
+                      {p.name}
+                    </span>
+                    <span className="shrink-0 text-[12px] font-semibold text-orange-500 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">
+                      ₹{p.price.toLocaleString("en-IN")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </PopoverContent>
+        </Popover>
+      </div>
+      <Input
+        type="number"
+        placeholder="₹0"
+        min="0"
+        className="w-20 sm:w-24 shrink-0"
+        value={row.price}
+        onChange={(e) => onChange({ price: e.target.value })}
+      />
+      {trailing === "add" && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Add another service"
+          className="shrink-0 h-9 w-9 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+          onClick={onAdd}
+        >
+          <Plus className="h-4 w-4" />
         </Button>
-      </DialogFooter>
-    </>
+      )}
+      {trailing === "remove" && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Remove service"
+          className="shrink-0 h-9 w-9 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          onClick={onRemove}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+      {trailing === "none" && <div className="w-9 shrink-0" />}
+    </div>
   );
 }

@@ -95,16 +95,19 @@ export function BillEditDialog({
     ? bill.createdAt.getTime() + BILL_EDIT_WINDOW_MS - Date.now()
     : 0;
 
-  const handleServiceSave = (values: ServiceFormValues) => {
+  const handleServiceSave = (values: ServiceFormValues[]) => {
     if (editingService) {
+      const [updated] = values;
       setServices((prev) =>
-        prev.map((s) => (s.id === editingService.id ? { ...s, ...values } : s)),
+        prev.map((s) =>
+          s.id === editingService.id ? { ...s, ...updated } : s,
+        ),
       );
       setEditingService(null);
     } else {
       setServices((prev) => [
         ...prev,
-        { id: Date.now().toString(), ...values },
+        ...values.map((v, i) => ({ id: `${Date.now()}-${i}`, ...v })),
       ]);
     }
   };
