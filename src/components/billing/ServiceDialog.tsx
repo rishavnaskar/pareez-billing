@@ -22,6 +22,7 @@ import {
   getActiveProducts,
   type CatalogueProduct,
 } from "@/lib/db/products";
+import { getActiveEmployees, type StaffMember } from "@/lib/db/employees";
 
 export interface ServiceFormValues {
   serviceName: string;
@@ -178,10 +179,25 @@ function ServiceFormFields({
   );
 
   const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
+  const [employees, setEmployees] = useState<StaffMember[]>([]);
+  const [staffSuggestOpen, setStaffSuggestOpen] = useState(false);
 
   useEffect(() => {
     getActiveProducts().then(setCatalogue).catch(() => {});
+    getActiveEmployees().then(setEmployees).catch(() => {});
   }, []);
+
+  const staffMatches = useMemo(() => {
+    const q = staffName.trim().toLowerCase();
+    if (!q) return employees.slice(0, 30);
+    return employees
+      .filter(
+        (e) =>
+          e.name.toLowerCase().includes(q) ||
+          e.designation.toLowerCase().includes(q),
+      )
+      .slice(0, 30);
+  }, [staffName, employees]);
 
   const updateRow = (id: string, patch: Partial<ServiceRow>) =>
     setRows((prev) =>
@@ -296,12 +312,52 @@ function ServiceFormFields({
             <Label className="text-sm font-medium" htmlFor="service-staff">
               Staff (Optional)
             </Label>
-            <Input
-              id="service-staff"
-              placeholder="Staff"
-              value={staffName}
-              onChange={(e) => setStaffName(e.target.value)}
-            />
+            <Popover
+              open={staffSuggestOpen && staffMatches.length > 0}
+              onOpenChange={setStaffSuggestOpen}
+            >
+              <PopoverAnchor asChild>
+                <Input
+                  id="service-staff"
+                  placeholder="Staff"
+                  autoComplete="off"
+                  value={staffName}
+                  onChange={(e) => {
+                    setStaffName(e.target.value);
+                    setStaffSuggestOpen(true);
+                  }}
+                  onFocus={() => setStaffSuggestOpen(true)}
+                />
+              </PopoverAnchor>
+              <PopoverContent
+                className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                align="start"
+                sideOffset={6}
+              >
+                {staffMatches.map((emp) => (
+                  <button
+                    key={emp.id}
+                    type="button"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 active:bg-orange-100 transition-colors border-b border-gray-50 last:border-0"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setStaffName(emp.name);
+                      setStaffSuggestOpen(false);
+                    }}
+                  >
+                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 leading-snug truncate">
+                      {emp.name}
+                    </span>
+                    {emp.designation && (
+                      <span className="shrink-0 text-[11px] text-gray-400">
+                        {emp.designation}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>

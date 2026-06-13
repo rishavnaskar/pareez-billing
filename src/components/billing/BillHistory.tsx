@@ -28,6 +28,18 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { formatINR } from '@/lib/currency';
 
+// Unique staff names across a bill's services (a bill can span more than one
+// employee). Falls back to N/A when no service recorded a staff member.
+function billStaffNames(bill: Bill): string[] {
+    return Array.from(
+        new Set(
+            bill.services
+                .map((s) => s.staffName?.trim())
+                .filter((n): n is string => !!n),
+        ),
+    );
+}
+
 export function BillHistory() {
     const { user } = useAuth();
     const [allBills, setAllBills] = useState<Bill[]>([]);
@@ -259,6 +271,7 @@ export function BillHistory() {
                                                 <TableHead className="text-xs sm:text-sm min-w-[150px]">Customer</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[180px]">Time</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[200px]">Services</TableHead>
+                                                <TableHead className="text-xs sm:text-sm min-w-[120px]">Employee</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[80px]">Total</TableHead>
                                                 <TableHead className="text-xs sm:text-sm w-[48px]"><span className="sr-only">Actions</span></TableHead>
                                             </TableRow>
@@ -297,6 +310,15 @@ export function BillHistory() {
                                                                         </Badge>
                                                                     )}
                                                                 </div>
+                                                            </TableCell>
+                                                            <TableCell className="min-w-[120px] text-xs sm:text-sm">
+                                                                {billStaffNames(bill).length > 0 ? (
+                                                                    <span className="text-gray-700">
+                                                                        {billStaffNames(bill).join(', ')}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-400">N/A</span>
+                                                                )}
                                                             </TableCell>
                                                             <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900">
                                                                 {formatINR(bill.totalAmount)}
