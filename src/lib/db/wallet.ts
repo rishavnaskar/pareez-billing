@@ -433,6 +433,122 @@ export async function editBillWithWallet(
   return result;
 }
 
+// Delete a bill within 24 hours of creation, reversing its full effect on the
+// customer's wallet: refund any redeemed wallet/deposit, claw back the cashback
+// it earned, and roll back lifetime spend/earn/redeem and tier. The bill's
+// linked wallet transactions are removed and one audit entry records the
+// reversal. The 24h window is also enforced in firestore.rules.
+export async function deleteBillWithWallet(billId: string): Promise<void> {
+  const billRef = doc(db, "bills", billId);
+  const preSnap = await getDoc(billRef);
+  if (!preSnap.exists()) {
+    throw new Error("Bill not found");
+  }
+  const preBill = billFromDoc(preSnap);
+
+  if (!isBillEditable(preBill.createdAt)) {
+    throw new Error("Bills can only be deleted within 24 hours of creation");
+  }
+
+  const tierConfig = await getBranchTierConfig(preBill.branchId);
+
+  // Firestore transactions can't run queries, so resolve the linked wallet
+  // transaction refs up front and delete them by ref inside the transaction.
+  const txnSnap = await getDocs(
+    query(collection(db, "walletTransactions"), where("billId", "==", billId)),
+  );
+  const linkedTxnRefs = txnSnap.docs.map((d) => d.ref);
+
+  await runTransaction(db, async (transaction) => {
+    const customerRef = doc(db, "customers", preBill.customerId);
+    const [billSnap, customerSnap] = await Promise.all([
+      transaction.get(billRef),
+      transaction.get(customerRef),
+    ]);
+
+    if (!billSnap.exists()) {
+      throw new Error("Bill not found");
+    }
+    const bill = billFromDoc(billSnap);
+    if (!isBillEditable(bill.createdAt)) {
+      throw new Error("Bills can only be deleted within 24 hours of creation");
+    }
+
+    const walletUsed = bill.walletAmountUsed ?? 0;
+    const depositUsed = bill.depositAmountUsed ?? 0;
+    const cashback = bill.cashbackEarned ?? 0;
+
+    if (customerSnap.exists()) {
+      const currentWallet = walletFromData(customerSnap.data().wallet);
+
+      // Reverse what processBillWithWallet did: add back redeemed wallet,
+      // remove earned cashback, restore deposit, undo lifetime totals.
+      const newBalance = currentWallet.balance + walletUsed - cashback;
+      if (newBalance < 0) {
+        throw new Error(
+          "Cannot delete this bill: the cashback it earned has already been spent from the customer's wallet",
+        );
+      }
+      const newDepositBalance =
+        (currentWallet.depositBalance ?? 0) + depositUsed;
+      const newLifetimeSpend = Math.max(
+        0,
+        currentWallet.lifetimeSpend - bill.totalAmount,
+      );
+      const newLifetimeEarned = Math.max(
+        0,
+        currentWallet.lifetimeEarned - cashback,
+      );
+      const newLifetimeRedeemed = Math.max(
+        0,
+        currentWallet.lifetimeRedeemed - walletUsed,
+      );
+      const newTier = getTierFromSpend(newLifetimeSpend, tierConfig.thresholds);
+      const tierChanged = newTier !== currentWallet.tier;
+
+      transaction.update(customerRef, {
+        "wallet.balance": newBalance,
+        "wallet.depositBalance": newDepositBalance,
+        "wallet.lifetimeSpend": newLifetimeSpend,
+        "wallet.lifetimeEarned": newLifetimeEarned,
+        "wallet.lifetimeRedeemed": newLifetimeRedeemed,
+        "wallet.tier": newTier,
+        ...(tierChanged ? { "wallet.tierUpdatedAt": Timestamp.now() } : {}),
+        "wallet.lastActivityAt": Timestamp.now(),
+      });
+
+      // Audit trail: a single entry explaining the wallet movement, since the
+      // bill's own credit/debit transactions are being removed below.
+      const reversal = walletUsed - cashback;
+      if (reversal !== 0 || depositUsed !== 0) {
+        const txnRef = doc(collection(db, "walletTransactions"));
+        const parts: string[] = [];
+        if (cashback > 0) parts.push(`-₹${cashback} cashback`);
+        if (walletUsed > 0) parts.push(`+₹${walletUsed} wallet refund`);
+        if (depositUsed > 0) parts.push(`+₹${depositUsed} deposit refund`);
+        transaction.set(txnRef, {
+          customerId: preBill.customerId,
+          type: "adjustment",
+          amount: reversal,
+          billNumber: bill.billNumber,
+          description: `Bill #${bill.billNumber} deleted — reversed ${parts.join(", ")}`,
+          balanceAfter: newBalance,
+          tierAtTransaction: newTier,
+          createdAt: Timestamp.now(),
+        });
+      }
+    }
+
+    for (const ref of linkedTxnRefs) {
+      transaction.delete(ref);
+    }
+    transaction.delete(billRef);
+  });
+
+  invalidate.customers();
+  invalidate.bills();
+}
+
 // Admin: Adjust wallet balance manually. `bucket` chooses between the
 // cashback rewards balance and the deposit/advance balance (e.g. refunding
 // an advance in cash or correcting a wrongly entered deposit).

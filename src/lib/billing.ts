@@ -14,6 +14,12 @@ export function isBillEditable(createdAt: Date): boolean {
   return Date.now() - createdAt.getTime() < BILL_EDIT_WINDOW_MS;
 }
 
+// Bills can be deleted within the same 24h window as edits. Enforced
+// server-side in firestore.rules too — keep the three in sync.
+export function isBillDeletable(createdAt: Date): boolean {
+  return Date.now() - createdAt.getTime() < BILL_EDIT_WINDOW_MS;
+}
+
 // Single source of truth for bill math, shared by the form, preview and save path
 export function computeBillTotals(
   services: ServiceItem[],

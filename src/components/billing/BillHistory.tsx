@@ -14,11 +14,12 @@ import {
 } from '@/components/ui/table';
 import { getAllBills } from '@/lib/db';
 import { getBranches } from '@/lib/db';
+import { deleteBillWithWallet } from '@/lib/db';
 import { Bill, Branch } from '@/lib/types';
 import { BillPreviewDialog } from './BillPreviewDialog';
 import { BillEditDialog } from './BillEditDialog';
-import { isBillEditable } from '@/lib/billing';
-import { Pencil, Receipt, RefreshCw } from 'lucide-react';
+import { isBillEditable, isBillDeletable } from '@/lib/billing';
+import { Pencil, Receipt, RefreshCw, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -49,6 +50,25 @@ export function BillHistory() {
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [editingBill, setEditingBill] = useState<Bill | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const handleDeleteBill = async (bill: Bill) => {
+        const ok = window.confirm(
+            `Delete bill ${bill.billNumber} for ${bill.customerName}?\n\n` +
+            `This reverses any cashback, wallet and deposit changes from this bill and cannot be undone.`,
+        );
+        if (!ok) return;
+        setDeletingId(bill.id);
+        try {
+            await deleteBillWithWallet(bill.id);
+            setAllBills((prev) => prev.filter((b) => b.id !== bill.id));
+        } catch (error) {
+            console.error('Failed to delete bill:', error);
+            alert(error instanceof Error ? error.message : 'Failed to delete bill');
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     const clearFilters = () => {
         setStartDate('');
@@ -273,7 +293,7 @@ export function BillHistory() {
                                                 <TableHead className="text-xs sm:text-sm min-w-[200px]">Services</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[120px]">Employee</TableHead>
                                                 <TableHead className="text-xs sm:text-sm min-w-[80px]">Total</TableHead>
-                                                <TableHead className="text-xs sm:text-sm w-[48px]"><span className="sr-only">Actions</span></TableHead>
+                                                <TableHead className="text-xs sm:text-sm w-[84px]"><span className="sr-only">Actions</span></TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -323,25 +343,48 @@ export function BillHistory() {
                                                             <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900">
                                                                 {formatINR(bill.totalAmount)}
                                                             </TableCell>
-                                                            <TableCell className="w-[48px]">
-                                                                {isBillEditable(bill.createdAt) && (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        aria-label={`Edit bill ${bill.billNumber}`}
-                                                                        className="h-7 w-7 text-gray-500 hover:text-blue-600"
-                                                                        onClick={(e) => {
-                                                                            // The whole row opens the preview dialog —
-                                                                            // keep this click from reaching it
-                                                                            e.stopPropagation();
-                                                                            e.preventDefault();
-                                                                            setEditingBill(bill);
-                                                                        }}
-                                                                    >
-                                                                        <Pencil className="h-3.5 w-3.5" />
-                                                                    </Button>
-                                                                )}
+                                                            <TableCell className="w-[84px]">
+                                                                <div className="flex items-center gap-1">
+                                                                    {isBillEditable(bill.createdAt) && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            aria-label={`Edit bill ${bill.billNumber}`}
+                                                                            className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                                                                            onClick={(e) => {
+                                                                                // The whole row opens the preview dialog —
+                                                                                // keep this click from reaching it
+                                                                                e.stopPropagation();
+                                                                                e.preventDefault();
+                                                                                setEditingBill(bill);
+                                                                            }}
+                                                                        >
+                                                                            <Pencil className="h-3.5 w-3.5" />
+                                                                        </Button>
+                                                                    )}
+                                                                    {isBillDeletable(bill.createdAt) && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            aria-label={`Delete bill ${bill.billNumber}`}
+                                                                            disabled={deletingId === bill.id}
+                                                                            className="h-7 w-7 text-gray-500 hover:text-red-600"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                e.preventDefault();
+                                                                                handleDeleteBill(bill);
+                                                                            }}
+                                                                        >
+                                                                            {deletingId === bill.id ? (
+                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                            ) : (
+                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                            )}
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
                                                             </TableCell>
                                                         </TableRow>
                                                     </BillPreviewDialog>
