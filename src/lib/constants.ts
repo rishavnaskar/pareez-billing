@@ -40,10 +40,11 @@ export function getGoogleReviewUrl(branchId?: string): string {
   return SOCIAL_LINKS.googleReview.url;
 }
 
+// Order here drives the payment-method dropdown order (UPI first).
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  upi: "📱 UPI",
   cash: "💵 Cash",
   card: "💳 Card",
-  upi: "📱 UPI",
 };
 
 export const BILL_NUMBER_PREFIX = "PRZ";

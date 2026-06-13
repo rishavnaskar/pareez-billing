@@ -82,7 +82,7 @@ export function BillForm() {
     null,
   );
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
   const [loading, setLoading] = useState(false);
   const [resolvedRates, setResolvedRates] = useState<ResolvedRates | null>(
     null,
