@@ -5,7 +5,11 @@ import { Separator } from "@/components/ui/separator";
 import { Banknote, Wallet } from "lucide-react";
 import { ServiceItem, PaymentMethod } from "@/lib/types";
 import { formatINR } from "@/lib/currency";
-import { PAYMENT_METHOD_LABELS, SOCIAL_LINKS } from "@/lib/constants";
+import {
+  PAYMENT_METHOD_LABELS,
+  SOCIAL_LINKS,
+  getGoogleReviewUrl,
+} from "@/lib/constants";
 
 // Shared building blocks for the on-screen receipt, used by both the live
 // draft preview (BillForm) and the saved-bill dialog (BillPreviewDialog).
@@ -167,7 +171,7 @@ export function ReceiptTotals({
   );
 }
 
-export function ReceiptFooter() {
+export function ReceiptFooter({ branchId }: { branchId?: string }) {
   return (
     <div className="mt-8 text-center text-xs text-gray-500">
       <p>Thank you for visiting Pareez!</p>
@@ -179,12 +183,12 @@ export function ReceiptFooter() {
           <p>
             <span className="text-blue-600">⭐ Google Review:</span>
             <a
-              href={SOCIAL_LINKS.googleReview.url}
+              href={getGoogleReviewUrl(branchId)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline hover:text-blue-800 break-all"
             >
-              {SOCIAL_LINKS.googleReview.label}
+              Leave us a Google review
             </a>
           </p>
           <p>

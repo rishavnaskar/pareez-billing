@@ -201,7 +201,7 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
               </div>
             )}
 
-            <ReceiptFooter />
+            <ReceiptFooter branchId={bill.branchId} />
           </div>
         </div>
       </DialogContent>

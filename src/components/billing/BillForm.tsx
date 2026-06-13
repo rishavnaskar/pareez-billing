@@ -885,7 +885,7 @@ export function BillForm() {
                 </div>
               )}
 
-              <ReceiptFooter />
+              <ReceiptFooter branchId={selectedBranchId ?? undefined} />
             </div>
           </CardContent>
         </Card>

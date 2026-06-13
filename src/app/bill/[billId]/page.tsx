@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Banknote, Download, Wallet, Gift } from "lucide-react";
 import { generateBillPDF } from "@/lib/pdf-generator";
 import { maskPhoneNumber } from "@/lib/phone-mask";
+import { getGoogleReviewUrl } from "@/lib/constants";
 import { formatINR } from "@/lib/currency";
 import Image from "next/image";
 import { TIER_CONFIG } from "@/lib/wallet";
@@ -430,7 +431,7 @@ export default function BillPreviewPage() {
               📘 Facebook
             </a>
             <a
-              href="https://g.page/r/CQL8v4uFTDjKEBI/review"
+              href={getGoogleReviewUrl(bill.branchId)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 transition-all w-full sm:w-auto justify-center"
