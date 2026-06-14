@@ -332,6 +332,11 @@ function ServiceFormFields({
               <PopoverContent
                 className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
                 onOpenAutoFocus={(e) => e.preventDefault()}
+                // Keep the list open while the user keeps typing in the input —
+                // Radix otherwise fires a focus-outside dismiss on each keystroke,
+                // so suggestions would flicker/only appear intermittently. Real
+                // outside clicks (pointer-down) and Escape still close it.
+                onFocusOutside={(e) => e.preventDefault()}
                 align="start"
                 sideOffset={6}
               >
@@ -451,6 +456,8 @@ function ServiceNamePriceRow({
           <PopoverContent
             className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
             onOpenAutoFocus={(e) => e.preventDefault()}
+            // Keep suggestions open while typing (see staff field for rationale).
+            onFocusOutside={(e) => e.preventDefault()}
             align="start"
             sideOffset={6}
           >
