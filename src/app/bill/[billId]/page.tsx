@@ -447,12 +447,20 @@ export default function BillPreviewPage() {
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-3">
             <a
-              href="https://instagram.com/pareezsalon"
+              href="https://pareezsalon.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all w-full sm:w-auto justify-center"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full text-sm font-medium hover:from-orange-600 hover:to-amber-600 transition-all w-full sm:w-auto justify-center"
             >
-              📷 Instagram
+              🌐 Visit our Website
+            </a>
+            <a
+              href={getGoogleReviewUrl(bill.branchId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 transition-all w-full sm:w-auto justify-center"
+            >
+              ⭐ Google Review
             </a>
             <a
               href="https://facebook.com/PAREEZ.salon"
@@ -463,12 +471,12 @@ export default function BillPreviewPage() {
               📘 Facebook
             </a>
             <a
-              href={getGoogleReviewUrl(bill.branchId)}
+              href="https://instagram.com/pareezsalon"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 transition-all w-full sm:w-auto justify-center"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all w-full sm:w-auto justify-center"
             >
-              ⭐ Google Review
+              📷 Instagram
             </a>
           </div>
 
