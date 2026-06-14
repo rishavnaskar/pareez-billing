@@ -1,32 +1,14 @@
 import { Bill } from './types';
-import { formatINR } from './currency';
 
 /**
- * Generate WhatsApp share message for a bill
- * @param bill - The bill object containing bill details
+ * Generate WhatsApp share message for a bill.
+ * Intentionally minimal — only the bill link is shared (no bill number,
+ * customer name or amount), plus the salon header, thanks and socials.
  * @param billUrl - The URL to view the bill online
  * @returns Formatted WhatsApp message string
  */
-export function generateWhatsAppMessage(bill: Bill, billUrl: string): string {
-  const depositUsed = bill.depositAmountUsed ?? 0;
-  const amountLines =
-    bill.walletAmountUsed > 0 || depositUsed > 0
-      ? [
-          `Total Amount: ${formatINR(bill.totalAmount)}`,
-          ...(depositUsed > 0
-            ? [`Deposit Adjusted: ${formatINR(-depositUsed)}`]
-            : []),
-          ...(bill.walletAmountUsed > 0
-            ? [`Wallet Redeemed: ${formatINR(-bill.walletAmountUsed)}`]
-            : []),
-          `Amount Paid: ${formatINR(bill.netPayableAmount)}`,
-        ]
-      : [`Total Amount: ${formatINR(bill.totalAmount)}`];
-
+export function generateWhatsAppMessage(billUrl: string): string {
   return `Bill from Pareez Unisex Professional Salon
-Bill No: ${bill.billNumber}
-Customer: ${bill.customerName}
-${amountLines.join("\n")}
 
 View your bill online: ${billUrl}
 
@@ -49,7 +31,7 @@ export function shareBillViaWhatsApp(bill: Bill, billId: string): void {
     ? `${window.location.origin}/bill/${billId}`
     : '';
 
-  const message = encodeURIComponent(generateWhatsAppMessage(bill, billUrl));
+  const message = encodeURIComponent(generateWhatsAppMessage(billUrl));
 
   // Direct WhatsApp to customer's phone number (wa.me requires country code)
   if (bill.customerPhone) {

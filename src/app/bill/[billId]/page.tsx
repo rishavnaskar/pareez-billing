@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getBillById } from "@/lib/db";
+import { getBranchConfig } from "@/lib/branch-config";
 import { Bill, ServiceItem, MembershipTier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,9 @@ export default function BillPreviewPage() {
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Minimum bill amount (per branch, from Firebase) required to earn cashback —
+  // used to nudge customers toward bigger bills so they start earning rewards.
+  const [minBillForCashback, setMinBillForCashback] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchBill = async () => {
@@ -29,6 +33,11 @@ export default function BillPreviewPage() {
 
         if (billData) {
           setBill(billData);
+          if (billData.branchId) {
+            getBranchConfig(billData.branchId)
+              .then((cfg) => setMinBillForCashback(cfg.minBillForCashback))
+              .catch(() => {});
+          }
         } else {
           setError("Bill not found");
         }
@@ -398,9 +407,32 @@ export default function BillPreviewPage() {
               )}
             </div>
 
-            <p className="text-xs text-gray-500 mt-4 text-center">
-              💡 Use your wallet balance on your next visit to save more!
-            </p>
+            {bill.walletBalanceAfter !== undefined && bill.walletBalanceAfter > 0 && (
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                💡 Use your wallet balance on your next visit to save more!
+              </p>
+            )}
+
+            {/* Encourage bigger bills so customers start earning cashback —
+                many currently sit at a ₹0 wallet because their bills are below
+                the branch's minimum-for-cashback amount. */}
+            <div className="mt-4 rounded-lg bg-white/70 border border-orange-200 px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-orange-700">
+                🛍️ Earn more cashback on your next visit!
+              </p>
+              <p className="text-xs text-gray-600 mt-1">
+                Spend{" "}
+                {minBillForCashback != null ? (
+                  <span className="font-semibold text-gray-800">
+                    {formatINR(minBillForCashback)} or more
+                  </span>
+                ) : (
+                  "a little more"
+                )}{" "}
+                on a single bill to earn cashback in your Pareez wallet — then
+                redeem it to save on your next visit. 💖
+              </p>
+            </div>
           </div>
         )}
 
