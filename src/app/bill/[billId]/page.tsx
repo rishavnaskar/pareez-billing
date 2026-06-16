@@ -6,6 +6,7 @@ import { getBillById } from "@/lib/db";
 import { getBranchConfig } from "@/lib/branch-config";
 import { Bill, ServiceItem, MembershipTier } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { Banknote, Download, Wallet, Gift } from "lucide-react";
 import { generateBillPDF } from "@/lib/pdf-generator";
@@ -84,10 +85,10 @@ export default function BillPreviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading bill...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Loading bill...</p>
         </div>
       </div>
     );
@@ -95,13 +96,13 @@ export default function BillPreviewPage() {
 
   if (error || !bill) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <Card className="max-w-md w-full mx-4">
           <CardContent className="pt-6 text-center">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               Bill Not Found
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-300">
               The requested bill could not be found.
             </p>
           </CardContent>
@@ -111,7 +112,7 @@ export default function BillPreviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-gray-50 py-4 sm:py-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-gray-50 dark:from-gray-900 dark:to-gray-950 py-4 sm:py-8">
       <div className="max-w-3xl mx-auto px-4">
         {/* Header with Logo and Download */}
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -124,19 +125,22 @@ export default function BillPreviewPage() {
               className="object-contain rounded-lg"
             />
             <div className="text-center sm:text-left">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                 Pareez Unisex Professional Salon
               </h1>
-              <p className="text-sm text-gray-600">Your Beauty, Our Passion</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Your Beauty, Our Passion</p>
             </div>
           </div>
-          <Button
-            onClick={handleDownloadPDF}
-            className="bg-orange-500 hover:bg-orange-600"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Download Receipt
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleDownloadPDF}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Receipt
+            </Button>
+            <ThemeToggle variant="page" />
+          </div>
         </div>
 
         {/* Bill Card */}
@@ -160,19 +164,19 @@ export default function BillPreviewPage() {
           <CardContent className="p-6">
             {/* Customer Information */}
             <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-3">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Customer Information
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                 <div>
-                  <p className="text-sm text-gray-600">Name</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Name</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
                     {bill.customerName}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Phone</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Phone</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
                     {bill.customerPhone
                       ? maskPhoneNumber(bill.customerPhone)
                       : "N/A"}
@@ -186,8 +190,8 @@ export default function BillPreviewPage() {
               <div className="mb-6">
                 {bill.branchAddress && (
                   <div>
-                    <p className="text-sm text-gray-600">Address</p>
-                    <p className="font-medium text-gray-900">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Address</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
                       {bill.branchAddress}
                     </p>
                   </div>
@@ -203,19 +207,19 @@ export default function BillPreviewPage() {
                   const serviceTotal =
                     service.price - (service.discountAmount || 0);
                   return (
-                    <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                    <div key={index} className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
                           {service.serviceName}
                         </span>
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">
                           {formatINR(serviceTotal)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-xs text-gray-600">
+                      <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300">
                         <span>Price: {formatINR(service.price)}</span>
                         {service.discountAmount > 0 && (
-                          <span className="text-green-600">
+                          <span className="text-green-600 dark:text-green-400">
                             Discount: {formatINR(-service.discountAmount)}
                           </span>
                         )}
@@ -228,18 +232,18 @@ export default function BillPreviewPage() {
               {/* Desktop View */}
               <div className="hidden sm:block">
                 <table className="w-full">
-                  <thead className="border-b-2 border-gray-200">
+                  <thead className="border-b-2 border-gray-200 dark:border-gray-700">
                     <tr>
-                      <th className="text-left py-2 text-gray-700 font-semibold">
+                      <th className="text-left py-2 text-gray-700 dark:text-gray-200 font-semibold">
                         Service
                       </th>
-                      <th className="text-right py-2 text-gray-700 font-semibold">
+                      <th className="text-right py-2 text-gray-700 dark:text-gray-200 font-semibold">
                         Price
                       </th>
-                      <th className="text-right py-2 text-gray-700 font-semibold">
+                      <th className="text-right py-2 text-gray-700 dark:text-gray-200 font-semibold">
                         Discount
                       </th>
-                      <th className="text-right py-2 text-gray-700 font-semibold">
+                      <th className="text-right py-2 text-gray-700 dark:text-gray-200 font-semibold">
                         Total
                       </th>
                     </tr>
@@ -250,19 +254,19 @@ export default function BillPreviewPage() {
                         const serviceTotal =
                           service.price - (service.discountAmount || 0);
                         return (
-                          <tr key={index} className="border-b border-gray-100">
-                            <td className="py-3 text-gray-900">
+                          <tr key={index} className="border-b border-gray-100 dark:border-gray-800">
+                            <td className="py-3 text-gray-900 dark:text-gray-100">
                               {service.serviceName}
                             </td>
-                            <td className="py-3 text-right text-gray-900">
+                            <td className="py-3 text-right text-gray-900 dark:text-gray-100">
                               {formatINR(service.price)}
                             </td>
-                            <td className="py-3 text-right text-green-600">
+                            <td className="py-3 text-right text-green-600 dark:text-green-400">
                               {service.discountAmount > 0
                                 ? formatINR(-service.discountAmount)
                                 : "-"}
                             </td>
-                            <td className="py-3 text-right text-gray-900 font-medium">
+                            <td className="py-3 text-right text-gray-900 dark:text-gray-100 font-medium">
                               {formatINR(serviceTotal)}
                             </td>
                           </tr>
@@ -275,12 +279,12 @@ export default function BillPreviewPage() {
             </div>
 
             {/* Payment Summary */}
-            <div className="border-t-2 border-gray-200 pt-4">
-              <h3 className="font-semibold text-gray-900 mb-3">
+            <div className="border-t-2 border-gray-200 dark:border-gray-700 pt-4">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Payment Summary
               </h3>
               <div className="space-y-2">
-                <div className="flex justify-between text-gray-700">
+                <div className="flex justify-between text-gray-700 dark:text-gray-200">
                   <span>Subtotal:</span>
                   <span className="font-medium">
                     {formatINR(bill.subtotal)}
@@ -293,7 +297,7 @@ export default function BillPreviewPage() {
                   );
                   return (
                     serviceDiscounts > 0 && (
-                      <div className="flex justify-between text-green-600">
+                      <div className="flex justify-between text-green-600 dark:text-green-400">
                         <span>Service Discounts:</span>
                         <span className="font-medium">
                           {formatINR(-serviceDiscounts)}
@@ -303,7 +307,7 @@ export default function BillPreviewPage() {
                   );
                 })()}
                 {bill.discountAmount > 0 && (
-                  <div className="flex justify-between text-green-600">
+                  <div className="flex justify-between text-green-600 dark:text-green-400">
                     <span>Additional Discount:</span>
                     <span className="font-medium">
                       {formatINR(-bill.discountAmount)}
@@ -311,7 +315,7 @@ export default function BillPreviewPage() {
                   </div>
                 )}
                 {(bill.depositAmountUsed ?? 0) > 0 && (
-                  <div className="flex justify-between text-green-700">
+                  <div className="flex justify-between text-green-700 dark:text-green-300">
                     <span className="flex items-center gap-1">
                       <Banknote className="h-4 w-4" />
                       Deposit Adjusted:
@@ -322,7 +326,7 @@ export default function BillPreviewPage() {
                   </div>
                 )}
                 {bill.walletAmountUsed > 0 && (
-                  <div className="flex justify-between text-purple-600">
+                  <div className="flex justify-between text-purple-600 dark:text-purple-400">
                     <span className="flex items-center gap-1">
                       <Wallet className="h-4 w-4" />
                       Wallet Redemption:
@@ -333,26 +337,26 @@ export default function BillPreviewPage() {
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Payment Method</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium capitalize">
+                  <span className="text-gray-700 dark:text-gray-200">Payment Method</span>
+                  <span className="px-3 py-1 bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 rounded-full text-sm font-medium capitalize">
                     💳 {bill.paymentMethod}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t-2 border-orange-200">
-                  <span className="text-lg font-bold text-gray-900">
+                <div className="flex justify-between items-center pt-3 border-t-2 border-orange-200 dark:border-orange-500/30">
+                  <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     Bill Total
                   </span>
-                  <span className="text-2xl font-bold text-orange-600">
+                  <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                     {formatINR(bill.totalAmount)}
                   </span>
                 </div>
                 {(bill.walletAmountUsed > 0 ||
                   (bill.depositAmountUsed ?? 0) > 0) && (
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">
+                    <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
                       Amount Paid
                     </span>
-                    <span className="text-2xl font-bold text-green-600">
+                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {formatINR(bill.netPayableAmount)}
                     </span>
                   </div>
@@ -364,10 +368,10 @@ export default function BillPreviewPage() {
 
         {/* Wallet & Rewards Section */}
         {(bill.cashbackEarned > 0 || bill.walletBalanceAfter !== undefined) && (
-          <div className="mt-6 bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 rounded-xl border border-orange-200 shadow-md p-6">
+          <div className="mt-6 bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-500/10 dark:via-amber-500/10 dark:to-yellow-500/10 rounded-xl border border-orange-200 dark:border-orange-500/30 shadow-md p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Gift className="h-6 w-6 text-orange-600" />
-              <h3 className="text-lg font-bold text-gray-900">Your Rewards</h3>
+              <Gift className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Your Rewards</h3>
               {bill.customerTierAtPurchase && (
                 <span className="ml-auto">
                   <TierBadge tier={bill.customerTierAtPurchase} size="md" />
@@ -377,14 +381,14 @@ export default function BillPreviewPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {bill.cashbackEarned > 0 && (
-                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                  <p className="text-sm text-green-700 mb-1">
+                <div className="bg-green-50 dark:bg-green-500/10 rounded-lg p-4 border border-green-200 dark:border-green-500/30">
+                  <p className="text-sm text-green-700 dark:text-green-300 mb-1">
                     🎉 Cashback Earned
                   </p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                     {formatINR(bill.cashbackEarned)}
                   </p>
-                  <p className="text-xs text-green-600 mt-1">
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                     {bill.customerTierAtPurchase &&
                       `${Math.round((bill.cashbackRateApplied ?? 0) * 100)}% ${TIER_CONFIG[bill.customerTierAtPurchase as MembershipTier]?.name} reward`}
                   </p>
@@ -392,15 +396,15 @@ export default function BillPreviewPage() {
               )}
 
               {bill.walletBalanceAfter !== undefined && (
-                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                  <p className="text-sm text-orange-700 mb-1 flex items-center gap-1">
+                <div className="bg-orange-50 dark:bg-orange-500/10 rounded-lg p-4 border border-orange-200 dark:border-orange-500/30">
+                  <p className="text-sm text-orange-700 dark:text-orange-300 mb-1 flex items-center gap-1">
                     <Wallet className="h-4 w-4" />
                     Current Wallet Balance
                   </p>
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                     {formatINR(bill.walletBalanceAfter)}
                   </p>
-                  <p className="text-xs text-orange-600 mt-1">
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                     Available for your next visit
                   </p>
                 </div>
@@ -408,7 +412,7 @@ export default function BillPreviewPage() {
             </div>
 
             {bill.walletBalanceAfter !== undefined && bill.walletBalanceAfter > 0 && (
-              <p className="text-xs text-gray-500 mt-4 text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
                 💡 Use your wallet balance on your next visit to save more!
               </p>
             )}
@@ -416,14 +420,14 @@ export default function BillPreviewPage() {
             {/* Encourage bigger bills so customers start earning cashback —
                 many currently sit at a ₹0 wallet because their bills are below
                 the branch's minimum-for-cashback amount. */}
-            <div className="mt-4 rounded-lg bg-white/70 border border-orange-200 px-4 py-3 text-center">
-              <p className="text-sm font-semibold text-orange-700">
+            <div className="mt-4 rounded-lg bg-white/70 dark:bg-gray-900/70 border border-orange-200 dark:border-orange-500/30 px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-orange-700 dark:text-orange-300">
                 🛍️ Earn more cashback on your next visit!
               </p>
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                 Spend{" "}
                 {minBillForCashback != null ? (
-                  <span className="font-semibold text-gray-800">
+                  <span className="font-semibold text-gray-800 dark:text-gray-100">
                     {formatINR(minBillForCashback)} or more
                   </span>
                 ) : (
@@ -437,11 +441,11 @@ export default function BillPreviewPage() {
         )}
 
         {/* Thank You Section */}
-        <div className="mt-6 text-center bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+        <div className="mt-6 text-center bg-white dark:bg-gray-900 rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Thank You! 💕
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
             We appreciate your visit to Pareez Unisex Professional Salon
           </p>
 
@@ -480,7 +484,7 @@ export default function BillPreviewPage() {
             </a>
           </div>
 
-          <p className="text-xs text-gray-500 mt-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
             Follow us for updates and special offers!
           </p>
         </div>

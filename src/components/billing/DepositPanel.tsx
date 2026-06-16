@@ -31,15 +31,15 @@ export function DepositPanel({
   const maxUsable = Math.min(depositBalance, totalAmount);
 
   return (
-    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-500/10 dark:to-emerald-500/10 rounded-xl border border-green-200 dark:border-green-500/30">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Banknote className="h-5 w-5 text-green-600" />
-          <span className="font-semibold text-gray-800">
+          <Banknote className="h-5 w-5 text-green-600 dark:text-green-400" />
+          <span className="font-semibold text-gray-800 dark:text-gray-100">
             Deposit / Advance
           </span>
         </div>
-        <span className="text-sm font-bold text-green-700">
+        <span className="text-sm font-bold text-green-700 dark:text-green-300">
           {formatINR(depositBalance)} available
         </span>
       </div>
@@ -47,7 +47,7 @@ export function DepositPanel({
       <div className="flex items-center justify-between gap-3">
         <Label
           htmlFor="use-deposit"
-          className="text-sm text-gray-700 cursor-pointer"
+          className="text-sm text-gray-700 dark:text-gray-200 cursor-pointer"
         >
           Use deposit for this bill
         </Label>
@@ -67,7 +67,7 @@ export function DepositPanel({
 
       {useDeposit && (
         <div className="mt-3 space-y-2">
-          <Label htmlFor="deposit-use-amount" className="text-xs text-gray-500">
+          <Label htmlFor="deposit-use-amount" className="text-xs text-gray-500 dark:text-gray-400">
             Amount to apply (max {formatINR(maxUsable)})
           </Label>
           <Input
@@ -84,7 +84,7 @@ export function DepositPanel({
             }}
           />
           {actualDepositUsage > 0 && (
-            <p className="text-xs text-green-700">
+            <p className="text-xs text-green-700 dark:text-green-300">
               {formatINR(actualDepositUsage)} will be deducted from the deposit
               balance
             </p>

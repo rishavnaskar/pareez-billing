@@ -35,26 +35,26 @@ export function WalletPanel({
   onWalletAmountChange,
 }: WalletPanelProps) {
   return (
-    <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200">
+    <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/10 rounded-xl border border-orange-200 dark:border-orange-500/30">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Wallet className="h-5 w-5 text-orange-600" />
-          <span className="font-semibold text-gray-800">Wallet & Rewards</span>
+          <Wallet className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+          <span className="font-semibold text-gray-800 dark:text-gray-100">Wallet & Rewards</span>
         </div>
         <TierBadge tier={customer.wallet.tier} size="sm" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-3">
-        <div className="bg-white/70 rounded-lg p-2">
-          <p className="text-xs text-gray-500">Available Balance</p>
-          <p className="font-bold text-orange-600">
+        <div className="bg-white/70 dark:bg-gray-900/70 rounded-lg p-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Available Balance</p>
+          <p className="font-bold text-orange-600 dark:text-orange-400">
             {formatINR(customer.wallet.balance)}
           </p>
         </div>
-        <div className="bg-white/70 rounded-lg p-2">
-          <p className="text-xs text-gray-500">Max Redeemable</p>
-          <p className="font-bold text-blue-600">{formatINR(maxRedemption)}</p>
-          <p className="text-xs text-gray-400">
+        <div className="bg-white/70 dark:bg-gray-900/70 rounded-lg p-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Max Redeemable</p>
+          <p className="font-bold text-blue-600 dark:text-blue-400">{formatINR(maxRedemption)}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             ({Math.round(resolvedRates.maxRedemptionRate * 100)}% of bill)
           </p>
         </div>
@@ -77,7 +77,7 @@ export function WalletPanel({
 
           {useWallet && (
             <div className="flex items-center gap-2">
-              <Label className="text-sm text-gray-600">Amount:</Label>
+              <Label className="text-sm text-gray-600 dark:text-gray-300">Amount:</Label>
               <Input
                 type="number"
                 className="w-24 text-sm"
@@ -104,8 +104,8 @@ export function WalletPanel({
       )}
 
       {actualWalletUsage > 0 && (
-        <div className="mt-3 pt-3 border-t border-orange-200">
-          <div className="flex justify-between text-sm text-green-600">
+        <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-500/30">
+          <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
             <span>Wallet Deduction</span>
             <span>{formatINR(-actualWalletUsage)}</span>
           </div>
@@ -113,8 +113,8 @@ export function WalletPanel({
       )}
 
       {cashbackToEarn > 0 && (
-        <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
-          <div className="flex items-center gap-2 text-green-700">
+        <div className="mt-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/30">
+          <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
             <span className="text-lg">🎉</span>
             <span className="text-sm">
               You&apos;ll earn <strong>{formatINR(cashbackToEarn)}</strong>{" "}
@@ -125,8 +125,8 @@ export function WalletPanel({
       )}
 
       {totalAmount < resolvedRates.minBillForCashback && totalAmount > 0 && (
-        <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-xs text-yellow-700">
+        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg border border-yellow-200 dark:border-yellow-500/30">
+          <p className="text-xs text-yellow-700 dark:text-yellow-300">
             💡 Minimum bill of {formatINR(resolvedRates.minBillForCashback)}{" "}
             required to earn cashback or redeem wallet balance
           </p>

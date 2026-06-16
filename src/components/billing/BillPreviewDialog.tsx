@@ -116,7 +116,7 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
 
           {/* Bill Preview */}
           <div
-            className="rounded-lg border bg-white p-4 sm:p-6"
+            className="rounded-lg border bg-white dark:bg-gray-900 p-4 sm:p-6"
             style={{ minHeight: "400px" }}
           >
             {/* Header with Logo */}
@@ -124,7 +124,7 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
               <div className="mb-2 flex items-center justify-center">
                 <BillLogo />
               </div>
-              <p className="text-sm text-gray-600">{SALON.tagline}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{SALON.tagline}</p>
             </div>
 
             <Separator className="my-4" />
@@ -145,7 +145,7 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
             {bill.branchAddress && (
               <div className="mb-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Address:</span>
+                  <span className="text-gray-500 dark:text-gray-400">Address:</span>
                   <span className="ml-2 font-medium">{bill.branchAddress}</span>
                 </div>
               </div>
@@ -170,29 +170,29 @@ export function BillPreviewDialog({ bill, children }: BillPreviewDialogProps) {
             {/* Wallet & Rewards Section */}
             {(bill.cashbackEarned > 0 ||
               bill.walletBalanceAfter !== undefined) && (
-              <div className="mt-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">
+              <div className="mt-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/10 rounded-lg border border-orange-200 dark:border-orange-500/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <Gift className="h-4 w-4 text-orange-600" />
-                  <span className="font-semibold text-gray-800 text-sm">
+                  <Gift className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  <span className="font-semibold text-gray-800 dark:text-gray-100 text-sm">
                     Your Rewards
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {bill.cashbackEarned > 0 && (
-                    <div className="bg-green-50 rounded p-2 border border-green-200">
-                      <p className="text-green-700">🎉 Cashback Earned</p>
-                      <p className="font-bold text-green-600">
+                    <div className="bg-green-50 dark:bg-green-500/10 rounded p-2 border border-green-200 dark:border-green-500/30">
+                      <p className="text-green-700 dark:text-green-300">🎉 Cashback Earned</p>
+                      <p className="font-bold text-green-600 dark:text-green-400">
                         {formatINR(bill.cashbackEarned)}
                       </p>
                     </div>
                   )}
                   {bill.walletBalanceAfter !== undefined && (
-                    <div className="bg-orange-50 rounded p-2 border border-orange-200">
-                      <p className="text-orange-700 flex items-center gap-1">
+                    <div className="bg-orange-50 dark:bg-orange-500/10 rounded p-2 border border-orange-200 dark:border-orange-500/30">
+                      <p className="text-orange-700 dark:text-orange-300 flex items-center gap-1">
                         <Wallet className="h-3 w-3" />
                         Wallet Balance
                       </p>
-                      <p className="font-bold text-orange-600">
+                      <p className="font-bold text-orange-600 dark:text-orange-400">
                         {formatINR(bill.walletBalanceAfter)}
                       </p>
                     </div>

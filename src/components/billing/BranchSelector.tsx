@@ -50,7 +50,7 @@ export function BranchSelector({ selectedBranchId, onBranchChange }: BranchSelec
     }, [loading, branches, user, selectedBranchId, onBranchChange]);
 
     if (loading) {
-        return <div className="text-sm text-gray-500">Loading branches...</div>;
+        return <div className="text-sm text-gray-500 dark:text-gray-400">Loading branches...</div>;
     }
 
     if (user?.role === 'user' && user.branchId) {
@@ -58,7 +58,7 @@ export function BranchSelector({ selectedBranchId, onBranchChange }: BranchSelec
         return (
             <div className="space-y-2">
                 <Label>Branch</Label>
-                <div className="rounded-md border bg-gray-50 px-3 py-2 text-sm">
+                <div className="rounded-md border bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm">
                     {userBranch?.name || 'Your Branch'}
                 </div>
             </div>
@@ -67,7 +67,7 @@ export function BranchSelector({ selectedBranchId, onBranchChange }: BranchSelec
 
     return (
         <div className="space-y-2">
-            <Label>Select Branch {user?.role === 'admin' && <span className="text-xs text-gray-500">(Admin)</span>}</Label>
+            <Label>Select Branch {user?.role === 'admin' && <span className="text-xs text-gray-500 dark:text-gray-400">(Admin)</span>}</Label>
             <Select value={selectedBranchId || undefined} onValueChange={onBranchChange}>
                 <SelectTrigger>
                     <SelectValue placeholder="Select a branch" />

@@ -185,13 +185,13 @@ export function BillHistory() {
                     </div>
 
                     {/* Filters */}
-                    <div className="border-l-2 border-gray-200 pl-4">
+                    <div className="border-l-2 border-gray-200 dark:border-gray-700 pl-4">
                         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                             {/* Date Range Filter */}
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Date range</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">Date range</span>
                                 <div className="flex items-center gap-2">
-                                    <Label htmlFor="start-date" className="text-xs text-gray-500 whitespace-nowrap">From</Label>
+                                    <Label htmlFor="start-date" className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">From</Label>
                                     <Input
                                         id="start-date"
                                         type="date"
@@ -199,7 +199,7 @@ export function BillHistory() {
                                         onChange={(e) => setStartDate(e.target.value)}
                                         className="w-32 sm:w-36 h-8"
                                     />
-                                    <Label htmlFor="end-date" className="text-xs text-gray-500 whitespace-nowrap">To</Label>
+                                    <Label htmlFor="end-date" className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">To</Label>
                                     <Input
                                         id="end-date"
                                         type="date"
@@ -213,7 +213,7 @@ export function BillHistory() {
                             {/* Branch Filter */}
                             {user?.role === 'admin' && branches.length > 0 && (
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Branch</span>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">Branch</span>
                                     <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
                                         <SelectTrigger className="w-40 sm:w-48 h-8">
                                             <SelectValue placeholder="All branches" />
@@ -248,9 +248,9 @@ export function BillHistory() {
             </CardHeader>
             <CardContent>
                 {loading ? (
-                    <div className="py-8 text-center text-gray-500 text-sm">Loading...</div>
+                    <div className="py-8 text-center text-gray-500 dark:text-gray-400 text-sm">Loading...</div>
                 ) : filteredBills.length === 0 ? (
-                    <div className="py-8 text-center text-gray-500 text-sm">
+                    <div className="py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                         {hasActiveFilters ? (
                             <div>
                                 <p>No bills found matching your filters.</p>
@@ -269,14 +269,14 @@ export function BillHistory() {
                         )}
                     </div>
                 ) : daySectionsList.length === 0 ? (
-                    <div className="py-8 text-center text-gray-500 text-sm">No bills match the filters.</div>
+                    <div className="py-8 text-center text-gray-500 dark:text-gray-400 text-sm">No bills match the filters.</div>
                 ) : (
                     <div className="space-y-6">
                         {daySectionsList.map(({ day, bills, totals }) => (
                             <div key={day} className="space-y-3">
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="text-base font-semibold text-gray-900">{day}</div>
-                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-700">
+                                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100">{day}</div>
+                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
                                         <span className="font-medium">Total: {formatINR(totals.overall)}</span>
                                         <span>Cash: {formatINR(totals.cash)}</span>
                                         <span>Card: {formatINR(totals.card)}</span>
@@ -299,14 +299,14 @@ export function BillHistory() {
                                         <TableBody>
                                             {bills.map((bill) => (
                                                     <BillPreviewDialog key={bill.id} bill={bill}>
-                                                        <TableRow className="cursor-pointer hover:bg-gray-50">
+                                                        <TableRow className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                                                             <TableCell className="font-mono text-xs sm:text-sm min-w-[100px]">
                                                                 {bill.billNumber}
                                                             </TableCell>
                                                             <TableCell className="min-w-[150px]">
                                                                 <div>
                                                                     <div className="font-medium text-xs sm:text-sm">{bill.customerName}</div>
-                                                                    <div className="text-xs text-gray-500">
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
                                                                         {maskPhoneForRole(bill.customerPhone, user?.role) || 'N/A'}
                                                                     </div>
                                                                 </div>
@@ -314,7 +314,7 @@ export function BillHistory() {
                                                             <TableCell className="text-xs sm:text-sm min-w-[180px]">
                                                                 {format(new Date(bill.createdAt), 'hh:mm a')}
                                                                 {bill.editedAt && (
-                                                                    <span className="ml-1 text-[10px] text-gray-400">(edited)</span>
+                                                                    <span className="ml-1 text-[10px] text-gray-400 dark:text-gray-500">(edited)</span>
                                                                 )}
                                                             </TableCell>
                                                             <TableCell className="min-w-[200px]">
@@ -333,14 +333,14 @@ export function BillHistory() {
                                                             </TableCell>
                                                             <TableCell className="min-w-[120px] text-xs sm:text-sm">
                                                                 {billStaffNames(bill).length > 0 ? (
-                                                                    <span className="text-gray-700">
+                                                                    <span className="text-gray-700 dark:text-gray-200">
                                                                         {billStaffNames(bill).join(', ')}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-gray-400">N/A</span>
+                                                                    <span className="text-gray-400 dark:text-gray-500">N/A</span>
                                                                 )}
                                                             </TableCell>
-                                                            <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900">
+                                                            <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900 dark:text-gray-100">
                                                                 {formatINR(bill.totalAmount)}
                                                             </TableCell>
                                                             <TableCell className="w-[84px]">
@@ -351,7 +351,7 @@ export function BillHistory() {
                                                                             variant="ghost"
                                                                             size="icon"
                                                                             aria-label={`Edit bill ${bill.billNumber}`}
-                                                                            className="h-7 w-7 text-gray-500 hover:text-blue-600"
+                                                                            className="h-7 w-7 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                                                                             onClick={(e) => {
                                                                                 // The whole row opens the preview dialog —
                                                                                 // keep this click from reaching it
@@ -370,7 +370,7 @@ export function BillHistory() {
                                                                             size="icon"
                                                                             aria-label={`Delete bill ${bill.billNumber}`}
                                                                             disabled={deletingId === bill.id}
-                                                                            className="h-7 w-7 text-gray-500 hover:text-red-600"
+                                                                            className="h-7 w-7 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
                                                                                 e.preventDefault();

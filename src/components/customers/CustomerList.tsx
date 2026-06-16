@@ -98,7 +98,7 @@ export function CustomerList() {
       </CardHeader>
       <CardContent>
         <div className="relative mb-3 sm:mb-4">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           <Input
             placeholder="Search by name or phone..."
             value={searchTerm}
@@ -108,9 +108,9 @@ export function CustomerList() {
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-gray-500">Loading...</div>
+          <div className="py-8 text-center text-gray-500 dark:text-gray-400">Loading...</div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="py-8 text-center text-gray-500">
+          <div className="py-8 text-center text-gray-500 dark:text-gray-400">
             {searchTerm
               ? "No customers found"
               : "No customers yet. Add your first customer!"}
@@ -157,25 +157,25 @@ export function CustomerList() {
                             showName={false}
                           />
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-400 dark:text-gray-500">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm min-w-[100px]">
                         {customer.wallet ? (
                           <div className="space-y-0.5">
-                            <span className="flex items-center gap-1 text-orange-600 font-medium">
+                            <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400 font-medium">
                               <Wallet className="h-3 w-3" />
                               {formatINR(customer.wallet.balance)}
                             </span>
                             {customer.wallet.depositBalance > 0 && (
-                              <span className="flex items-center gap-1 text-green-700 font-medium">
+                              <span className="flex items-center gap-1 text-green-700 dark:text-green-300 font-medium">
                                 <Banknote className="h-3 w-3" />
                                 {formatINR(customer.wallet.depositBalance)}
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-gray-400">₹0</span>
+                          <span className="text-gray-400 dark:text-gray-500">₹0</span>
                         )}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm min-w-[150px]">
@@ -209,7 +209,7 @@ export function CustomerList() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteCustomer(customer)}
-                              className="h-7 px-2 text-red-600 hover:text-red-700"
+                              className="h-7 px-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>

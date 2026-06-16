@@ -90,17 +90,17 @@ export function BillQRCode({ billId, billNumber, bill, autoOpen = false, onNewBi
                 </DialogHeader>
                 <div className="flex flex-col items-center space-y-4">
                     <div className="text-center">
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                             Scan this QR code to open Bill #{billNumber}
                         </p>
-                        <p className="text-xs text-gray-500 break-all">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
                             {billUrl}
                         </p>
                     </div>
 
                     {loading ? (
-                        <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <div className="text-gray-500">Generating QR Code...</div>
+                        <div className="w-64 h-64 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                            <div className="text-gray-500 dark:text-gray-400">Generating QR Code...</div>
                         </div>
                     ) : (
                         <div className="relative">
@@ -109,7 +109,7 @@ export function BillQRCode({ billId, billNumber, bill, autoOpen = false, onNewBi
                                 alt={`QR Code for Bill ${billNumber}`}
                                 width={256}
                                 height={256}
-                                className="rounded-lg border-2 border-gray-200"
+                                className="rounded-lg border-2 border-gray-200 dark:border-gray-700"
                             />
                             <div className="absolute -bottom-2 -right-2 bg-white rounded-full shadow-lg p-1">
                                 <QrCode className="h-4 w-4 text-orange-500" />

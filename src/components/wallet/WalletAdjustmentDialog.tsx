@@ -102,26 +102,26 @@ export function WalletAdjustmentDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-orange-600" />
+            <Wallet className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             Adjust Wallet Balance
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="font-medium">{customer.name}</span>
             <TierBadge tier={customer.wallet.tier} size="sm" />
           </div>
-          <div className="text-sm text-gray-600 space-y-0.5">
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-0.5">
             <div>
               Rewards Balance:{" "}
-              <span className="font-bold text-orange-600">
+              <span className="font-bold text-orange-600 dark:text-orange-400">
                 {formatINR(customer.wallet.balance)}
               </span>
             </div>
             <div>
               Deposit Balance:{" "}
-              <span className="font-bold text-green-700">
+              <span className="font-bold text-green-700 dark:text-green-300">
                 {formatINR(customer.wallet.depositBalance)}
               </span>
             </div>
@@ -214,7 +214,7 @@ export function WalletAdjustmentDialog({
           </div>
 
           {amount && !isNaN(parseFloat(amount)) && (
-            <div className="p-3 bg-gray-50 rounded-lg text-sm">
+            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm">
               <div className="flex justify-between">
                 <span>
                   New {bucket === "deposit" ? "Deposit" : "Rewards"} Balance:

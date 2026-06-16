@@ -477,10 +477,10 @@ export function BillForm() {
           className="object-contain"
         />
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             {SALON.name}
           </h1>
-          <p className="text-gray-600 mt-1">Professional Beauty Services</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Professional Beauty Services</p>
         </div>
       </div>
 
@@ -495,7 +495,7 @@ export function BillForm() {
           </CardHeader>
           <CardContent className="space-y-4 sm:space-y-6">
             {/* Bill Info */}
-            <div className="flex flex-col gap-2 text-xs text-gray-600 sm:flex-row sm:gap-4 sm:text-sm">
+            <div className="flex flex-col gap-2 text-xs text-gray-600 dark:text-gray-300 sm:flex-row sm:gap-4 sm:text-sm">
               <div>
                 <span className="font-medium">Bill Number:</span> {billNumber}
               </div>
@@ -567,7 +567,7 @@ export function BillForm() {
               />
 
               {services.length === 0 ? (
-                <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-600">
+                <div className="rounded-md bg-gray-50 dark:bg-gray-900 p-3 text-sm text-gray-600 dark:text-gray-300">
                   No services added yet. Tap “Add Service” to start.
                 </div>
               ) : (
@@ -578,10 +578,10 @@ export function BillForm() {
                       className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="space-y-0.5">
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
                           {service.serviceName || "Untitled service"}
                         </div>
-                        <div className="text-gray-600 flex flex-wrap gap-3">
+                        <div className="text-gray-600 dark:text-gray-300 flex flex-wrap gap-3">
                           <span>Price: {formatINR(service.price)}</span>
                           <span>
                             Discount: {formatINR(service.discountAmount || 0)}
@@ -598,7 +598,7 @@ export function BillForm() {
                           size="icon"
                           onClick={() => openEditServiceDialog(service)}
                           aria-label="Edit service"
-                          className="text-gray-600 hover:text-gray-900"
+                          className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -607,7 +607,7 @@ export function BillForm() {
                           variant="ghost"
                           size="icon"
                           onClick={() => removeService(service.id)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 dark:hover:text-red-300"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -627,7 +627,7 @@ export function BillForm() {
                 <span>{formatINR(subtotal)}</span>
               </div>
               {serviceDiscounts > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
+                <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
                   <span>Service Discounts</span>
                   <span>{formatINR(-serviceDiscounts)}</span>
                 </div>
@@ -645,7 +645,7 @@ export function BillForm() {
                 />
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
+                <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
                   <span>Additional Discount</span>
                   <span>{formatINR(-discountAmount)}</span>
                 </div>
@@ -687,8 +687,8 @@ export function BillForm() {
 
               {/* Payment method not eligible notice */}
               {selectedCustomer && !savedBill && resolvedRates && !isEligible && (
-                <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <p className="text-sm text-yellow-700">
+                <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg border border-yellow-200 dark:border-yellow-500/30">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
                     Wallet & cashback rewards are not available for{" "}
                     {paymentMethod} payments at this branch.
                   </p>
@@ -731,7 +731,7 @@ export function BillForm() {
               {selectedCustomer && (actualWalletUsage > 0 || actualDepositUsage > 0) && (
                 <div className="flex justify-between text-xl font-bold pt-2">
                   <span>Amount to Pay</span>
-                  <span className="text-green-600">
+                  <span className="text-green-600 dark:text-green-400">
                     {formatINR(netPayable)}
                   </span>
                 </div>
@@ -820,7 +820,7 @@ export function BillForm() {
           </CardHeader>
           <CardContent>
             <div
-              className="rounded-lg border bg-white p-6"
+              className="rounded-lg border bg-white dark:bg-gray-900 p-6"
               style={{ minHeight: "500px" }}
             >
               {/* Header with Logo */}
@@ -828,9 +828,9 @@ export function BillForm() {
                 <div className="mb-2 flex items-center justify-center">
                   <BillLogo />
                 </div>
-                <p className="text-sm text-gray-600">{SALON.tagline}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{SALON.tagline}</p>
                 {selectedBranch && (
-                  <div className="mt-2 text-xs text-gray-500">
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <p className="font-medium">{selectedBranch.name}</p>
                     <p>{selectedBranch.address}</p>
                   </div>
@@ -877,8 +877,8 @@ export function BillForm() {
               />
 
               {cashbackToEarn > 0 && (
-                <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2 text-green-700 text-xs">
+                <div className="mt-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/30">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300 text-xs">
                     <span>🎉</span>
                     <span>
                       Cashback to earn:{" "}

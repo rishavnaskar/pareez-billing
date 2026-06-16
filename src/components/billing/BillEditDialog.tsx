@@ -179,7 +179,7 @@ export function BillEditDialog({
 
         {bill && (
           <div className="space-y-4 text-sm">
-            <div className="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
+            <div className="rounded-md bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
               {bill.customerName} · editable for{" "}
               {formatTimeLeft(Math.max(0, msLeft))} more
             </div>
@@ -213,7 +213,7 @@ export function BillEditDialog({
               />
 
               {services.length === 0 ? (
-                <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-600">
+                <div className="rounded-md bg-gray-50 dark:bg-gray-900 p-3 text-sm text-gray-600 dark:text-gray-300">
                   No services on this bill. Add at least one.
                 </div>
               ) : (
@@ -221,13 +221,13 @@ export function BillEditDialog({
                   {services.map((service) => (
                     <div
                       key={service.id}
-                      className="flex items-center justify-between gap-2 rounded-md border border-gray-100 px-3 py-2"
+                      className="flex items-center justify-between gap-2 rounded-md border border-gray-100 dark:border-gray-800 px-3 py-2"
                     >
                       <div className="min-w-0 space-y-0.5">
-                        <div className="font-medium text-gray-900 truncate">
+                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {service.serviceName}
                         </div>
-                        <div className="text-xs text-gray-600 flex flex-wrap gap-2">
+                        <div className="text-xs text-gray-600 dark:text-gray-300 flex flex-wrap gap-2">
                           <span>Price: {formatINR(service.price)}</span>
                           {(service.discountAmount || 0) > 0 && (
                             <span>
@@ -249,7 +249,7 @@ export function BillEditDialog({
                             setServiceDialogOpen(true);
                           }}
                           aria-label="Edit service"
-                          className="text-gray-600 hover:text-gray-900"
+                          className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -259,7 +259,7 @@ export function BillEditDialog({
                           size="icon"
                           onClick={() => removeService(service.id)}
                           aria-label="Remove service"
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 dark:hover:text-red-300"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -279,7 +279,7 @@ export function BillEditDialog({
                 <span>{formatINR(subtotal)}</span>
               </div>
               {serviceDiscounts > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-green-600 dark:text-green-400">
                   <span>Service Discounts</span>
                   <span>{formatINR(-serviceDiscounts)}</span>
                 </div>
@@ -333,7 +333,7 @@ export function BillEditDialog({
 
               {/* Redemption on the original bill is locked */}
               {redeemed > 0 && (
-                <div className="rounded-md bg-gray-50 px-3 py-2 space-y-1 text-xs text-gray-600">
+                <div className="rounded-md bg-gray-50 dark:bg-gray-900 px-3 py-2 space-y-1 text-xs text-gray-600 dark:text-gray-300">
                   {walletUsed > 0 && (
                     <div className="flex justify-between">
                       <span>Wallet used (locked)</span>
@@ -346,7 +346,7 @@ export function BillEditDialog({
                       <span>{formatINR(-depositUsed)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-semibold text-gray-900">
+                  <div className="flex justify-between font-semibold text-gray-900 dark:text-gray-100">
                     <span>Amount Paid</span>
                     <span>{formatINR(netPayable)}</span>
                   </div>
@@ -355,7 +355,7 @@ export function BillEditDialog({
 
               {/* Cashback adjustment preview */}
               {(newCashback > 0 || cashbackDelta !== 0) && (
-                <div className="rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
+                <div className="rounded-md bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 px-3 py-2 text-xs text-green-700 dark:text-green-300">
                   Cashback on this bill: {" "}
                   <strong>{formatINR(newCashback)}</strong>
                   {cashbackDelta !== 0 && (
@@ -370,7 +370,7 @@ export function BillEditDialog({
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">
+              <div className="rounded-md bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 px-3 py-2 text-xs text-red-600 dark:text-red-400">
                 {error}
               </div>
             )}

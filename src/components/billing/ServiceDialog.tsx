@@ -50,7 +50,7 @@ export function ServiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg border border-orange-100 shadow-lg">
         <DialogHeader>
-          <DialogTitle className="text-lg text-gray-900">
+          <DialogTitle className="text-lg text-gray-900 dark:text-gray-100">
             {editingService ? "Edit Service" : "Add Service"}
           </DialogTitle>
         </DialogHeader>
@@ -303,7 +303,7 @@ function ServiceFormFields({
               onChange={(e) => setDiscountAmount(e.target.value)}
             />
             {!isEditing && filledCount > 1 && (
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">
                 Split across services by price
               </p>
             )}
@@ -330,7 +330,7 @@ function ServiceFormFields({
                 />
               </PopoverAnchor>
               <PopoverContent
-                className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
+                className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white dark:bg-gray-900 shadow-xl"
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 // Keep the list open while the user keeps typing in the input —
                 // Radix otherwise fires a focus-outside dismiss on each keystroke,
@@ -344,18 +344,18 @@ function ServiceFormFields({
                   <button
                     key={emp.id}
                     type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 active:bg-orange-100 transition-colors border-b border-gray-50 last:border-0"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 dark:hover:bg-orange-500/10 active:bg-orange-100 dark:active:bg-orange-500/15 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setStaffName(emp.name);
                       setStaffSuggestOpen(false);
                     }}
                   >
-                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 leading-snug truncate">
+                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 dark:text-gray-100 leading-snug truncate">
                       {emp.name}
                     </span>
                     {emp.designation && (
-                      <span className="shrink-0 text-[11px] text-gray-400">
+                      <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
                         {emp.designation}
                       </span>
                     )}
@@ -454,7 +454,7 @@ function ServiceNamePriceRow({
             />
           </PopoverAnchor>
           <PopoverContent
-            className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white shadow-xl"
+            className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white dark:bg-gray-900 shadow-xl"
             onOpenAutoFocus={(e) => e.preventDefault()}
             // Keep suggestions open while typing (see staff field for rationale).
             onFocusOutside={(e) => e.preventDefault()}
@@ -463,26 +463,26 @@ function ServiceNamePriceRow({
           >
             {Array.from(grouped.entries()).map(([section, items], gi) => (
               <div key={section}>
-                <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100 ${gi > 0 ? "border-t border-gray-100" : ""}`}>
+                <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 ${gi > 0 ? "border-t border-gray-100 dark:border-gray-800" : ""}`}>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
                     {section}
                   </span>
-                  <span className="text-[10px] text-gray-400">{items.length}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">{items.length}</span>
                 </div>
                 {items.map((p) => (
                   <button
                     key={p.id}
                     type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 active:bg-orange-100 transition-colors border-b border-gray-50 last:border-0"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 dark:hover:bg-orange-500/10 active:bg-orange-100 dark:active:bg-orange-500/15 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       selectSuggestion(p);
                     }}
                   >
-                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 leading-snug truncate">
+                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 dark:text-gray-100 leading-snug truncate">
                       {p.name}
                     </span>
-                    <span className="shrink-0 text-[12px] font-semibold text-orange-500 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">
+                    <span className="shrink-0 text-[12px] font-semibold text-orange-500 bg-orange-50 dark:bg-orange-500/10 rounded px-1.5 py-0.5 whitespace-nowrap">
                       ₹{p.price.toLocaleString("en-IN")}
                     </span>
                   </button>
@@ -506,7 +506,7 @@ function ServiceNamePriceRow({
           variant="outline"
           size="icon"
           aria-label="Add another service"
-          className="shrink-0 h-9 w-9 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+          className="shrink-0 h-9 w-9 border-orange-200 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-300"
           onClick={onAdd}
         >
           <Plus className="h-4 w-4" />
@@ -518,7 +518,7 @@ function ServiceNamePriceRow({
           variant="ghost"
           size="icon"
           aria-label="Remove service"
-          className="shrink-0 h-9 w-9 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          className="shrink-0 h-9 w-9 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300"
           onClick={onRemove}
         >
           <X className="h-4 w-4" />

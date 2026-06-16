@@ -9,7 +9,7 @@ export function BillLogo() {
     if (imgError) {
         return (
             <div className="text-3xl font-bold">
-                <span className="text-gray-800">Paree</span>
+                <span className="text-gray-800 dark:text-gray-100">Paree</span>
                 <span className="text-orange-500">z</span>
             </div>
         );

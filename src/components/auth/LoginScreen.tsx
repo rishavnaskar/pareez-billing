@@ -96,16 +96,16 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
-                    <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-orange-100">
-                        <div className="text-orange-600 font-bold text-xl">P</div>
+                    <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-orange-100 dark:bg-orange-500/15">
+                        <div className="text-orange-600 dark:text-orange-400 font-bold text-xl">P</div>
                     </div>
-                    <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+                    <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-gray-100">
                         Pareez Billing
                     </h2>
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                         Sign in to your account
                     </p>
                 </div>
@@ -176,7 +176,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                     </CardContent>
                 </Card>
 
-                <div className="text-center text-xs text-gray-500">
+                <div className="text-center text-xs text-gray-500 dark:text-gray-400">
                     Pareez Unisex Professional Salon Billing System
                 </div>
             </div>

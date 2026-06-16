@@ -8,6 +8,7 @@ import { BillForm } from '@/components/billing/BillForm';
 import { BillHistory } from '@/components/billing/BillHistory';
 import { NewBillFAB } from '@/components/billing/NewBillFAB';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Users, FileText, Receipt, LogOut } from 'lucide-react';
 
@@ -24,7 +25,7 @@ function AuthenticatedContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 relative">
       {/* Header */}
       <header className="bg-black shadow-lg">
         <div className="mx-auto max-w-7xl px-2 py-3 sm:px-4 sm:py-4 lg:px-8">
@@ -72,6 +73,9 @@ function AuthenticatedContent() {
                 <span className="hidden sm:inline">Logout</span>
                 <span className="sm:hidden">Out</span>
               </Button>
+              <div className="flex items-center justify-center">
+                <ThemeToggle />
+              </div>
             </nav>
           </div>
         </div>
@@ -87,10 +91,10 @@ function AuthenticatedContent() {
 
       {/* Footer */}
       <footer
-        className="absolute bottom-0 left-0 right-0 border-t bg-white py-3 sm:py-4"
+        className="absolute bottom-0 left-0 right-0 border-t bg-white dark:bg-gray-900 dark:border-gray-800 py-3 sm:py-4"
         style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        <div className="mx-auto max-w-7xl px-2 text-center text-xs sm:text-sm text-gray-500">
+        <div className="mx-auto max-w-7xl px-2 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
           &copy; {new Date().getFullYear()} Pareez Salon
         </div>
       </footer>
