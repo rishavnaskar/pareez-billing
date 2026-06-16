@@ -1,17 +1,26 @@
 import { Bill } from './types';
+import { formatINR } from './currency';
 
 /**
  * Generate WhatsApp share message for a bill.
  * Intentionally minimal — only the bill link is shared (no bill number,
  * customer name or amount), plus the salon header, thanks and socials.
+ * When the customer has cashback sitting in their wallet, a line nudging
+ * them to redeem it on their next visit is included.
  * @param billUrl - The URL to view the bill online
+ * @param walletBalance - Customer's wallet balance after this bill (optional)
  * @returns Formatted WhatsApp message string
  */
-export function generateWhatsAppMessage(billUrl: string): string {
+export function generateWhatsAppMessage(billUrl: string, walletBalance?: number): string {
+  const cashbackLine =
+    walletBalance && walletBalance > 0
+      ? `\nYou have ${formatINR(walletBalance)} cashback in your Pareez wallet — redeem it on your next visit! 💖\n`
+      : "";
+
   return `Bill from Pareez Unisex Professional Salon
 
 View your bill online: ${billUrl}
-
+${cashbackLine}
 Thank you for visiting Pareez!
 
 Follow us on social media:
@@ -31,7 +40,7 @@ export function shareBillViaWhatsApp(bill: Bill, billId: string): void {
     ? `${window.location.origin}/bill/${billId}`
     : '';
 
-  const message = encodeURIComponent(generateWhatsAppMessage(billUrl));
+  const message = encodeURIComponent(generateWhatsAppMessage(billUrl, bill.walletBalanceAfter));
 
   // Direct WhatsApp to customer's phone number (wa.me requires country code)
   if (bill.customerPhone) {
