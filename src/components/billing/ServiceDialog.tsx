@@ -49,8 +49,9 @@ export function ServiceDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg w-[95vw] rounded-lg border border-orange-100 shadow-lg">
-        <DialogHeader>
-          <DialogTitle className="text-lg text-gray-900 dark:text-gray-100">
+        <DialogHeader className="sr-only">
+          {/* Kept for accessibility (Radix requires a title) but hidden. */}
+          <DialogTitle>
             {editingService ? "Edit Service" : "Add Service"}
           </DialogTitle>
         </DialogHeader>
@@ -68,7 +69,17 @@ export function ServiceDialog({
   );
 }
 
-const SECTION_ORDER = ["Men's", "Women's", "Unisex", "Other"];
+// Suggestion sections are shown in this order. Women's first (most common at
+// the salon), then the rest. Matched case-insensitively by substring so
+// "Women", "Women's", "women" all rank together. Order matters: "women"
+// contains "men", so it must be checked before "men".
+const SECTION_PRIORITY = ["women", "men", "unisex", "other"];
+
+function sectionRank(section: string): number {
+  const s = section.toLowerCase();
+  const i = SECTION_PRIORITY.findIndex((p) => s.includes(p));
+  return i === -1 ? SECTION_PRIORITY.length : i;
+}
 
 // Strip everything except letters and digits for fuzzy matching.
 // "hair cut" → "haircut", "lo'real" → "loreal", "o3+" → "o3"
@@ -181,6 +192,11 @@ function ServiceFormFields({
   const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
   const [employees, setEmployees] = useState<StaffMember[]>([]);
   const [staffSuggestOpen, setStaffSuggestOpen] = useState(false);
+  // Host the suggestion popovers inside the dialog so they sit within the
+  // dialog's scroll-lock subtree and stay touch-scrollable on mobile.
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   useEffect(() => {
     getActiveProducts().then(setCatalogue).catch(() => {});
@@ -265,6 +281,7 @@ function ServiceFormFields({
 
   return (
     <>
+      <div ref={setPortalContainer} />
       <div className="space-y-3 text-sm">
         <div className="space-y-2">
           <Label className="text-sm font-medium">
@@ -275,6 +292,7 @@ function ServiceFormFields({
               key={row.id}
               row={row}
               catalogue={catalogue}
+              portalContainer={portalContainer}
               onChange={(patch) => updateRow(row.id, patch)}
               // Inline + on the last row to add another; × to drop extra rows.
               trailing={
@@ -330,7 +348,8 @@ function ServiceFormFields({
                 />
               </PopoverAnchor>
               <PopoverContent
-                className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white dark:bg-gray-900 shadow-xl"
+                container={portalContainer}
+                className="p-0 w-[var(--radix-popover-trigger-width)] max-h-60 overflow-y-auto overscroll-contain rounded-lg border border-orange-100 bg-white dark:bg-gray-900 shadow-xl"
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 // Keep the list open while the user keeps typing in the input —
                 // Radix otherwise fires a focus-outside dismiss on each keystroke,
@@ -388,6 +407,7 @@ function ServiceFormFields({
 function ServiceNamePriceRow({
   row,
   catalogue,
+  portalContainer,
   onChange,
   trailing,
   onAdd,
@@ -395,12 +415,14 @@ function ServiceNamePriceRow({
 }: {
   row: ServiceRow;
   catalogue: CatalogueProduct[];
+  portalContainer: HTMLDivElement | null;
   onChange: (patch: Partial<ServiceRow>) => void;
   trailing: "add" | "remove" | "none";
   onAdd: () => void;
   onRemove: () => void;
 }) {
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     const q = row.serviceName.trim();
@@ -419,15 +441,20 @@ function ServiceNamePriceRow({
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
     }
-    const sorted = new Map<string, CatalogueProduct[]>();
-    for (const section of SECTION_ORDER) {
-      if (map.has(section)) sorted.set(section, map.get(section)!);
-    }
-    for (const [k, v] of map) {
-      if (!sorted.has(k)) sorted.set(k, v);
-    }
-    return sorted;
+    // Order sections by priority (Women's first), keeping the original
+    // insertion order as the tie-break for anything outside the priority list.
+    return new Map(
+      Array.from(map.entries()).sort(
+        ([a], [b]) => sectionRank(a) - sectionRank(b),
+      ),
+    );
   }, [filtered]);
+
+  // As the query changes the ranking changes, so scroll the list back to the
+  // top to keep the best matches in view (no-op if already at the top).
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = 0;
+  }, [row.serviceName]);
 
   function selectSuggestion(p: CatalogueProduct) {
     onChange({ serviceName: p.name, price: String(p.price) });
@@ -454,7 +481,11 @@ function ServiceNamePriceRow({
             />
           </PopoverAnchor>
           <PopoverContent
-            className="p-0 w-[--radix-popover-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-orange-100 bg-white dark:bg-gray-900 shadow-xl"
+            ref={listRef}
+            container={portalContainer}
+            // Wider than the name input: extends across the price field and the
+            // +/× button (≈8rem of row to the right) so service names wrap less.
+            className="p-0 w-[calc(var(--radix-popover-trigger-width)_+_8rem)] max-h-60 overflow-y-auto overscroll-contain rounded-lg border border-orange-100 bg-white dark:bg-gray-900 shadow-xl"
             onOpenAutoFocus={(e) => e.preventDefault()}
             // Keep suggestions open while typing (see staff field for rationale).
             onFocusOutside={(e) => e.preventDefault()}
@@ -473,13 +504,13 @@ function ServiceNamePriceRow({
                   <button
                     key={p.id}
                     type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-orange-50 dark:hover:bg-orange-500/10 active:bg-orange-100 dark:active:bg-orange-500/15 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+                    className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-orange-50 dark:hover:bg-orange-500/10 active:bg-orange-100 dark:active:bg-orange-500/15 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       selectSuggestion(p);
                     }}
                   >
-                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 dark:text-gray-100 leading-snug truncate">
+                    <span className="flex-1 min-w-0 text-[13px] text-gray-800 dark:text-gray-100 leading-snug break-words">
                       {p.name}
                     </span>
                     <span className="shrink-0 text-[12px] font-semibold text-orange-500 bg-orange-50 dark:bg-orange-500/10 rounded px-1.5 py-0.5 whitespace-nowrap">

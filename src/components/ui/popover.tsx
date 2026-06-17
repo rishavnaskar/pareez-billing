@@ -21,10 +21,17 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  // Override the portal target. Pass a node inside an open Dialog so the
+  // popover lives within the dialog's react-remove-scroll subtree — otherwise
+  // touch-scrolling the popover is blocked on mobile (the scroll lock only
+  // whitelists the dialog content node and its descendants).
+  container?: React.ComponentProps<typeof PopoverPrimitive.Portal>["container"]
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}
