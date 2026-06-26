@@ -259,20 +259,25 @@ export function BillForm() {
         )
       : 0;
 
-  // Reset wallet usage when customer changes or redemption becomes unavailable
+  // Deposit redemption stays opt-in; reset it when the customer changes.
   useEffect(() => {
-    setUseWallet(false);
-    setWalletAmountToUse(0);
     setUseDeposit(false);
     setDepositAmountToUse(0);
   }, [selectedCustomer?.id]);
 
+  // Wallet redemption defaults to ON at the maximum redeemable amount on every
+  // bill. Recompute whenever the customer or the redeemable max changes; if
+  // nothing is redeemable, turn it off. The cashier can still lower or disable
+  // it manually for the current bill.
   useEffect(() => {
-    if (maxRedemption === 0) {
+    if (maxRedemption > 0) {
+      setUseWallet(true);
+      setWalletAmountToUse(maxRedemption);
+    } else {
       setUseWallet(false);
       setWalletAmountToUse(0);
     }
-  }, [maxRedemption]);
+  }, [maxRedemption, selectedCustomer?.id]);
 
   const handleSaveBill = async () => {
     if (!selectedCustomer) {
