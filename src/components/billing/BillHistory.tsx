@@ -111,8 +111,12 @@ export function BillHistory() {
             };
         }
         acc[key].bills.push(bill);
-        acc[key].totals.overall += bill.totalAmount;
-        acc[key].totals[bill.paymentMethod] += bill.totalAmount;
+        // Day takings reflect money actually collected at the counter, so use
+        // the net payable (after wallet cashback + deposit redemption), not the
+        // gross bill value. Legacy bills predate netPayableAmount — fall back.
+        const net = bill.netPayableAmount ?? bill.totalAmount;
+        acc[key].totals.overall += net;
+        acc[key].totals[bill.paymentMethod] += net;
         return acc;
     }, {});
 
@@ -341,7 +345,7 @@ export function BillHistory() {
                                                                 )}
                                                             </TableCell>
                                                             <TableCell className="text-xs sm:text-sm min-w-[80px] font-semibold text-gray-900 dark:text-gray-100">
-                                                                {formatINR(bill.totalAmount)}
+                                                                {formatINR(bill.netPayableAmount ?? bill.totalAmount)}
                                                             </TableCell>
                                                             <TableCell className="w-[84px]">
                                                                 <div className="flex items-center gap-1">
