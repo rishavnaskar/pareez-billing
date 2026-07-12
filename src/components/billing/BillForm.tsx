@@ -67,7 +67,37 @@ import {
   SALON,
   BILL_NUMBER_PREFIX,
   PAYMENT_METHOD_LABELS,
+  MAX_BACKDATE_DAYS,
 } from "@/lib/constants";
+
+// ── Bill-date helpers (backdating up to MAX_BACKDATE_DAYS) ──────────────────
+// The calendar day only, in local time — used for comparisons and the counter.
+function toLocalMidnight(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+// yyyy-MM-dd for a native <input type="date"> (kept in local time).
+function toDateInputValue(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function parseDateInput(v: string): Date {
+  const [y, m, d] = v.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+// Combine a chosen calendar day with the current wall-clock time, so a bill
+// backdated to a past day still gets a sensible time-of-day (and "today"
+// resolves to right now).
+function withCurrentTime(day: Date): Date {
+  const now = new Date();
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds(),
+  );
+}
 
 export function BillForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -75,6 +105,8 @@ export function BillForm() {
   );
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  // Bill date — defaults to today, may be backdated up to MAX_BACKDATE_DAYS.
+  const [billDate, setBillDate] = useState<Date>(() => toLocalMidnight(new Date()));
   const [billNumber, setBillNumber] = useState("");
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
@@ -119,26 +151,35 @@ export function BillForm() {
   );
 
   useEffect(() => {
-    const fetchBranchAndBillNumber = async () => {
-      if (!selectedBranchId) return;
-
-      try {
-        const [branch, num] = await Promise.all([
-          getBranchById(selectedBranchId),
-          generateBillNumber(selectedBranchId),
-        ]);
-        setSelectedBranch(branch);
-        setBillNumber(num);
-      } catch (error) {
-        console.error(
-          "Error fetching branch or generating bill number:",
-          error,
-        );
-        setBillNumber(`${BILL_NUMBER_PREFIX}-${Date.now()}`);
-      }
+    if (!selectedBranchId) return;
+    let cancelled = false;
+    getBranchById(selectedBranchId)
+      .then((branch) => {
+        if (!cancelled) setSelectedBranch(branch);
+      })
+      .catch((error) => console.error("Error fetching branch:", error));
+    return () => {
+      cancelled = true;
     };
-    fetchBranchAndBillNumber();
   }, [selectedBranchId]);
+
+  // Provisional bill number depends on the branch AND the chosen date (the
+  // number is date-based), so regenerate whenever either changes.
+  useEffect(() => {
+    if (!selectedBranchId) return;
+    let cancelled = false;
+    generateBillNumber(selectedBranchId, billDate)
+      .then((num) => {
+        if (!cancelled) setBillNumber(num);
+      })
+      .catch((error) => {
+        console.error("Error generating bill number:", error);
+        if (!cancelled) setBillNumber(`${BILL_NUMBER_PREFIX}-${Date.now()}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBranchId, billDate]);
 
   // Resolve rates when branch, payment method, or customer tier changes
   useEffect(() => {
@@ -308,6 +349,27 @@ export function BillForm() {
       return;
     }
 
+    // Re-validate the bill date (defense-in-depth alongside the picker's
+    // min/max): must be today or within the last MAX_BACKDATE_DAYS.
+    const todayStart = toLocalMidnight(new Date());
+    const earliestStart = new Date(
+      todayStart.getFullYear(),
+      todayStart.getMonth(),
+      todayStart.getDate() - MAX_BACKDATE_DAYS,
+    );
+    const chosenStart = toLocalMidnight(billDate);
+    if (
+      chosenStart.getTime() > todayStart.getTime() ||
+      chosenStart.getTime() < earliestStart.getTime()
+    ) {
+      alert(
+        `Bill date must be today or within the last ${MAX_BACKDATE_DAYS} days.`,
+      );
+      return;
+    }
+    // The exact timestamp written to the bill (chosen day + current time).
+    const createdAtDate = withCurrentTime(billDate);
+
     setLoading(true);
     try {
       const depositUsage = useDeposit
@@ -377,6 +439,7 @@ export function BillForm() {
           walletUsage,
           cashback,
           depositUsage,
+          createdAtDate,
         );
 
         // Update local customer state with new wallet
@@ -389,7 +452,7 @@ export function BillForm() {
           ...billData,
           billNumber: finalBillNumber,
           id: billId,
-          createdAt: new Date(),
+          createdAt: createdAtDate,
           walletBalanceAfter: updatedWallet.balance,
         });
         setHasChanges(false);
@@ -428,7 +491,7 @@ export function BillForm() {
         discountAmount,
         totalAmount,
         paymentMethod,
-        createdAt: currentDateTime,
+        createdAt: billDateTime,
         cashbackEarned: savedBill.cashbackEarned,
         walletAmountUsed: savedBill.walletAmountUsed,
         depositAmountUsed: savedBill.depositAmountUsed,
@@ -467,7 +530,21 @@ export function BillForm() {
     window.location.reload();
   };
 
-  const currentDateTime = new Date();
+  // Displayed/printed date follows the chosen bill date (today by default).
+  const billDateTime = withCurrentTime(billDate);
+  const todayMidnight = toLocalMidnight(new Date());
+  const minDateStr = toDateInputValue(
+    new Date(
+      todayMidnight.getFullYear(),
+      todayMidnight.getMonth(),
+      todayMidnight.getDate() - MAX_BACKDATE_DAYS,
+    ),
+  );
+  const maxDateStr = toDateInputValue(todayMidnight);
+  const isBackdated = billDate.getTime() < todayMidnight.getTime();
+  const backdatedDays = Math.round(
+    (todayMidnight.getTime() - billDate.getTime()) / 86_400_000,
+  );
   const visibleServices = services.filter((s) => s.serviceName);
 
   return (
@@ -506,8 +583,44 @@ export function BillForm() {
               </div>
               <div>
                 <span className="font-medium">Date & Time:</span>{" "}
-                {format(currentDateTime, "dd MMM yyyy, hh:mm a")}
+                {format(billDateTime, "dd MMM yyyy, hh:mm a")}
               </div>
+            </div>
+
+            {/* Bill Date — allows backdating up to MAX_BACKDATE_DAYS days */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="bill-date" className="text-sm">
+                  Bill Date
+                </Label>
+                {isBackdated && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                    Backdated {backdatedDays} {backdatedDays === 1 ? "day" : "days"}
+                  </span>
+                )}
+              </div>
+              <Input
+                id="bill-date"
+                type="date"
+                className="w-full sm:w-52"
+                value={toDateInputValue(billDate)}
+                min={minDateStr}
+                max={maxDateStr}
+                disabled={!!savedBill}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const picked = toLocalMidnight(parseDateInput(e.target.value));
+                  const min = toLocalMidnight(parseDateInput(minDateStr));
+                  const max = toLocalMidnight(parseDateInput(maxDateStr));
+                  // Clamp to the allowed window in case of manual/keyboard entry.
+                  if (picked.getTime() < min.getTime()) setBillDate(min);
+                  else if (picked.getTime() > max.getTime()) setBillDate(max);
+                  else setBillDate(picked);
+                }}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Defaults to today. You can backdate a bill up to {MAX_BACKDATE_DAYS} days.
+              </p>
             </div>
 
             {/* Branch Selection */}
@@ -844,7 +957,7 @@ export function BillForm() {
 
               <Separator className="my-4" />
 
-              <ReceiptBillMeta billNumber={billNumber} date={currentDateTime} />
+              <ReceiptBillMeta billNumber={billNumber} date={billDateTime} />
 
               {selectedCustomer && (
                 <ReceiptCustomerInfo

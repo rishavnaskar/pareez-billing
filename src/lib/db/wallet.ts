@@ -31,7 +31,7 @@ import { isBillEditable } from "../billing";
 import { getBranchConfig, getBranchTierConfig } from "../branch-config";
 import { invalidate } from "../cache";
 import { billFromDoc, toDate, walletFromData, walletTransactionFromDoc } from "./converters";
-import { billCounterRef, formatBillNumber, getTodayBillCount } from "./bills";
+import { billCounterRef, formatBillNumber, getBillCountForDate } from "./bills";
 
 export async function getWalletTransactions(
   customerId: string,
@@ -115,15 +115,22 @@ export async function processBillWithWallet(
   walletAmountToUse: number,
   cashbackToEarn: number,
   depositAmountToUse: number = 0,
+  // The bill's date. Defaults to now; may be backdated up to MAX_BACKDATE_DAYS
+  // so staff can enter bills for previous days. Drives the bill number's date,
+  // its per-day counter, and the createdAt on the bill and its wallet
+  // transactions. lastActivityAt still uses the real "now" below, so
+  // backdating never trips the tier inactivity logic.
+  billDate: Date = new Date(),
 ): Promise<{ billId: string; billNumber: string; updatedWallet: CustomerWallet }> {
+  const billCreatedAt = Timestamp.fromDate(billDate);
   // Fetch configs and the counter seed before entering the transaction
   // (Firestore reads inside a transaction must go through the transaction object)
-  const [tierConfig, branchConfig, todayBills] = await Promise.all([
+  const [tierConfig, branchConfig, dateBills] = await Promise.all([
     getBranchTierConfig(bill.branchId),
     getBranchConfig(bill.branchId),
-    getTodayBillCount(bill.branchId),
+    getBillCountForDate(bill.branchId, billDate),
   ]);
-  const counterRef = billCounterRef(bill.branchId, todayBills.dateStr);
+  const counterRef = billCounterRef(bill.branchId, dateBills.dateStr);
 
   const result = await runTransaction(db, async (transaction) => {
     const customerRef = doc(db, "customers", customerId);
@@ -141,8 +148,8 @@ export async function processBillWithWallet(
     // actual bill count, and max-guarded against it so bills written by
     // clients that predate the counter can never cause a duplicate.
     const counterCount = (counterSnap.data()?.count as number | undefined) ?? 0;
-    const sequence = Math.max(counterCount, todayBills.count) + 1;
-    const billNumber = formatBillNumber(todayBills.dateStr, sequence);
+    const sequence = Math.max(counterCount, dateBills.count) + 1;
+    const billNumber = formatBillNumber(dateBills.dateStr, sequence);
     transaction.set(
       counterRef,
       { count: sequence, updatedAt: Timestamp.now() },
@@ -216,7 +223,7 @@ export async function processBillWithWallet(
       netPayableAmount: bill.totalAmount - walletAmountToUse - depositAmountToUse,
       customerTierAtPurchase: currentWallet.tier,
       walletBalanceAfter: newBalance,
-      createdAt: Timestamp.now(),
+      createdAt: billCreatedAt,
     });
 
     if (depositAmountToUse > 0) {
@@ -230,7 +237,7 @@ export async function processBillWithWallet(
         description: `Deposit applied to bill #${billNumber}`,
         balanceAfter: newDepositBalance,
         tierAtTransaction: currentWallet.tier,
-        createdAt: Timestamp.now(),
+        createdAt: billCreatedAt,
       });
     }
 
@@ -245,7 +252,7 @@ export async function processBillWithWallet(
         description: `Redeemed for bill #${billNumber}`,
         balanceAfter: currentWallet.balance - walletAmountToUse,
         tierAtTransaction: currentWallet.tier,
-        createdAt: Timestamp.now(),
+        createdAt: billCreatedAt,
       });
     }
 
@@ -265,7 +272,7 @@ export async function processBillWithWallet(
           : `Cashback on bill #${billNumber}`,
         balanceAfter: newBalance,
         tierAtTransaction: newTier,
-        createdAt: Timestamp.now(),
+        createdAt: billCreatedAt,
       });
     }
 

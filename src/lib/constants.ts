@@ -48,3 +48,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 };
 
 export const BILL_NUMBER_PREFIX = "PRZ";
+
+// A bill may be backdated up to this many days when it is created, so staff can
+// enter bills for previous days. Enforced in the bill form and validated again
+// in the save handler.
+export const MAX_BACKDATE_DAYS = 30;

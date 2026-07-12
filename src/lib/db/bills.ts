@@ -64,23 +64,24 @@ export function billCounterRef(branchId: string, dateStr: string) {
   return doc(db, "counters", `bills_${branchId}_${dateStr}`);
 }
 
-// Today's bill count via a server-side aggregation (no documents downloaded),
-// plus the YYYYMMDD date string the count applies to.
-export async function getTodayBillCount(
+// Bill count for a given calendar day via a server-side aggregation (no
+// documents downloaded), plus the YYYYMMDD date string the count applies to.
+// Defaults to today; pass a past date to number a backdated bill correctly.
+export async function getBillCountForDate(
   branchId?: string,
+  date: Date = new Date(),
 ): Promise<{ count: number; dateStr: string }> {
-  const today = new Date();
   const startOfDay = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
   );
   const endOfDay = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate() + 1,
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + 1,
   );
-  const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+  const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
 
   let q = query(
     collection(db, "bills"),
@@ -95,8 +96,19 @@ export async function getTodayBillCount(
   return { count: countSnapshot.data().count, dateStr };
 }
 
-// Provisional number for display while the bill is being drafted
-export async function generateBillNumber(branchId?: string): Promise<string> {
-  const { count, dateStr } = await getTodayBillCount(branchId);
+// Today's bill count (thin wrapper kept for existing callers).
+export async function getTodayBillCount(
+  branchId?: string,
+): Promise<{ count: number; dateStr: string }> {
+  return getBillCountForDate(branchId, new Date());
+}
+
+// Provisional number for display while the bill is being drafted. Pass the
+// bill's date so a backdated bill previews the right (date-based) number.
+export async function generateBillNumber(
+  branchId?: string,
+  date: Date = new Date(),
+): Promise<string> {
+  const { count, dateStr } = await getBillCountForDate(branchId, date);
   return formatBillNumber(dateStr, count + 1);
 }
