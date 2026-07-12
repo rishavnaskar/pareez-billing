@@ -18,8 +18,13 @@ interface WalletPanelProps {
   walletAmountToUse: number;
   actualWalletUsage: number;
   cashbackToEarn: number;
+  // Whether cashback applies to this bill (branch gives it + bill qualifies) —
+  // gates the toggle so switching it off can't hide its own control.
+  cashbackApplicable: boolean;
+  giveCashback: boolean;
   onUseWalletChange: (useWallet: boolean) => void;
   onWalletAmountChange: (amount: number) => void;
+  onGiveCashbackChange: (giveCashback: boolean) => void;
 }
 
 export function WalletPanel({
@@ -31,8 +36,11 @@ export function WalletPanel({
   walletAmountToUse,
   actualWalletUsage,
   cashbackToEarn,
+  cashbackApplicable,
+  giveCashback,
   onUseWalletChange,
   onWalletAmountChange,
+  onGiveCashbackChange,
 }: WalletPanelProps) {
   return (
     <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/10 rounded-xl border border-orange-200 dark:border-orange-500/30">
@@ -112,15 +120,42 @@ export function WalletPanel({
         </div>
       )}
 
-      {cashbackToEarn > 0 && (
-        <div className="mt-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/30">
-          <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-            <span className="text-lg">🎉</span>
-            <span className="text-sm">
-              You&apos;ll earn <strong>{formatINR(cashbackToEarn)}</strong>{" "}
-              cashback ({Math.round(resolvedRates.cashbackRate * 100)}%)
+      {/* Cashback earning toggle — on by default; cashier can disable cashback
+          for this specific bill. Shown whenever cashback applies so turning it
+          off never hides the switch. */}
+      {cashbackApplicable && (
+        <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-500/30 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm flex items-center gap-2">
+              <Switch
+                checked={giveCashback}
+                onCheckedChange={onGiveCashbackChange}
+              />
+              Give Cashback
+            </Label>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {Math.round(resolvedRates.cashbackRate * 100)}% of amount paid
             </span>
           </div>
+
+          {giveCashback ? (
+            <div className="p-2 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/30">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                <span className="text-lg">🎉</span>
+                <span className="text-sm">
+                  You&apos;ll earn <strong>{formatINR(cashbackToEarn)}</strong>{" "}
+                  cashback ({Math.round(resolvedRates.cashbackRate * 100)}%)
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-2 bg-gray-50 dark:bg-gray-800/60 rounded-lg border border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Cashback is turned off for this bill — no cashback will be
+                credited.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

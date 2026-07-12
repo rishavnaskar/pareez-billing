@@ -128,6 +128,10 @@ export function BillForm() {
   const [useWallet, setUseWallet] = useState(false);
   const [walletAmountToUse, setWalletAmountToUse] = useState(0);
 
+  // Cashback earning for this bill — on by default, cashier can turn it off
+  // per bill (independent of the branch-level cashback switch).
+  const [giveCashback, setGiveCashback] = useState(true);
+
   // Deposit/advance redemption states
   const [useDeposit, setUseDeposit] = useState(false);
   const [depositAmountToUse, setDepositAmountToUse] = useState(0);
@@ -290,7 +294,10 @@ export function BillForm() {
     ? Math.min(walletAmountToUse, maxRedemption, totalAmount - actualDepositUsage)
     : 0;
   const netPayable = totalAmount - actualWalletUsage - actualDepositUsage;
-  const cashbackToEarn =
+  // Cashback the bill would earn if enabled (independent of the giveCashback
+  // switch), used to decide whether to show the toggle at all — so turning it
+  // off can't hide its own control.
+  const potentialCashback =
     selectedCustomer && resolvedRates && isEligible
       ? calculateCashback(
           totalAmount,
@@ -299,11 +306,24 @@ export function BillForm() {
           resolvedRates.minBillForCashback,
         )
       : 0;
+  // Whether cashback applies to this bill (branch gives it + bill qualifies).
+  const cashbackApplicable =
+    !!selectedCustomer &&
+    !!resolvedRates &&
+    isEligible &&
+    resolvedRates.cashbackRate > 0 &&
+    totalAmount >= resolvedRates.minBillForCashback;
+  const cashbackToEarn = giveCashback ? potentialCashback : 0;
 
   // Deposit redemption stays opt-in; reset it when the customer changes.
   useEffect(() => {
     setUseDeposit(false);
     setDepositAmountToUse(0);
+  }, [selectedCustomer?.id]);
+
+  // Cashback earning defaults back to ON for each new customer/bill.
+  useEffect(() => {
+    setGiveCashback(true);
   }, [selectedCustomer?.id]);
 
   // Wallet redemption defaults to ON at the maximum redeemable amount on every
@@ -378,8 +398,10 @@ export function BillForm() {
       const walletUsage = useWallet
         ? Math.min(walletAmountToUse, maxRedemption, totalAmount - depositUsage)
         : 0;
+      // Cashback earning honours the per-bill switch: when off, this bill
+      // earns nothing regardless of branch rates.
       const cashback =
-        resolvedRates && isEligible
+        giveCashback && resolvedRates && isEligible
           ? calculateCashback(
               totalAmount,
               walletUsage,
@@ -408,7 +430,9 @@ export function BillForm() {
         customerTierAtPurchase: selectedCustomer.wallet.tier,
         walletBalanceAfter:
           selectedCustomer.wallet.balance - walletUsage + cashback,
-        cashbackRateApplied: resolvedRates?.cashbackRate ?? 0,
+        // Lock in 0 when cashback is switched off for this bill, so a later
+        // edit recomputes cashback as 0 instead of re-adding it.
+        cashbackRateApplied: giveCashback ? (resolvedRates?.cashbackRate ?? 0) : 0,
         maxRedemptionRateApplied: resolvedRates?.maxRedemptionRate ?? 0,
       };
 
@@ -463,6 +487,7 @@ export function BillForm() {
         setWalletAmountToUse(0);
         setUseDeposit(false);
         setDepositAmountToUse(0);
+        setGiveCashback(true);
       }
     } catch (error) {
       console.error("Error saving bill:", error);
@@ -840,8 +865,11 @@ export function BillForm() {
                   walletAmountToUse={walletAmountToUse}
                   actualWalletUsage={actualWalletUsage}
                   cashbackToEarn={cashbackToEarn}
+                  cashbackApplicable={cashbackApplicable}
+                  giveCashback={giveCashback}
                   onUseWalletChange={setUseWallet}
                   onWalletAmountChange={setWalletAmountToUse}
+                  onGiveCashbackChange={setGiveCashback}
                 />
               )}
 
