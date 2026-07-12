@@ -42,6 +42,12 @@ export interface BranchCashbackConfig {
   minBillForCashback: number;
   eligiblePaymentMethodsForDiscount: Record<PaymentMethod, boolean>;
   dayConfig: Record<DayOfWeek, Record<MembershipTier, TierRates>>;
+  // Master on/off switches (default true when absent, for backward compat).
+  // When cashbackEnabled is false no bill earns cashback; when
+  // redemptionEnabled is false customers cannot redeem wallet balance.
+  // Toggled from the admin dashboard Settings page.
+  cashbackEnabled: boolean;
+  redemptionEnabled: boolean;
   updatedAt: Date;
 }
 

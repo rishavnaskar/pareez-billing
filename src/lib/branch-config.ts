@@ -37,6 +37,8 @@ export function getDefaultBranchConfig(branchId: string): BranchCashbackConfig {
     minBillForCashback: 200,
     eligiblePaymentMethodsForDiscount: { cash: true, card: true, upi: true },
     dayConfig: DEFAULT_DAY_CONFIG,
+    cashbackEnabled: true,
+    redemptionEnabled: true,
     updatedAt: new Date(),
   };
 }
@@ -61,6 +63,10 @@ export async function getBranchConfig(
         eligiblePaymentMethodsForDiscount:
           data.eligiblePaymentMethodsForDiscount ?? { cash: true, card: true, upi: true },
         dayConfig: data.dayConfig ?? DEFAULT_DAY_CONFIG,
+        // Absent flag means the feature is on (branches configured before these
+        // switches existed keep their original behaviour).
+        cashbackEnabled: data.cashbackEnabled !== false,
+        redemptionEnabled: data.redemptionEnabled !== false,
         updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
       };
       cache.set(cacheKey, config, CACHE_TTL.CONFIG);
@@ -117,9 +123,13 @@ export function resolveRates(
   const today = getDayOfWeek();
   const dayRates = config.dayConfig[today]?.[tier] ?? DEFAULT_TIER_RATES[tier];
 
+  // Master switches (default on): a disabled feature resolves to a 0 rate,
+  // which the billing UI and the wallet transaction both treat as "off" —
+  // no cashback is earned / no wallet balance can be redeemed.
   return {
-    cashbackRate: dayRates.cashbackRate,
-    maxRedemptionRate: dayRates.maxRedemptionRate,
+    cashbackRate: config.cashbackEnabled === false ? 0 : dayRates.cashbackRate,
+    maxRedemptionRate:
+      config.redemptionEnabled === false ? 0 : dayRates.maxRedemptionRate,
     welcomeBonus: config.welcomeBonus,
     minBillForCashback: config.minBillForCashback,
     isPaymentMethodEligible: true,
